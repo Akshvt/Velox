@@ -1,68 +1,33 @@
-# VELOX â€” Implementation Plan
+﻿# VELOX -- Implementation Plan
 **AI Customer Support Platform | Multi-Tenant SaaS | Problem Statement #1**
 
-> Intercom + Zendesk + AI Copilot â€” hackathon-executable, production-grade, security-hardened.
+> Intercom + Zendesk + AI Copilot -- hackathon-executable, production-grade, security-hardened.
 
 ---
 
 ## Table of Contents
-0. [Diagrams & Maps](#diagrams--maps)
-1. [What We're Building](#what-were-building)
+
+0. [Diagrams and Maps](#diagrams-and-maps)
+1. [What We Are Building](#what-we-are-building)
 2. [Tech Stack](#tech-stack)
 3. [Architecture](#architecture)
 4. [Features](#features)
 5. [Pages](#pages)
 6. [Backend Team](#backend-team)
 7. [Frontend Team](#frontend-team)
-8. [Shared Reference](#shared-reference)
-9. [Sprint Plan](#sprint-plan)
-10. [Deployment](#deployment)
-11. [Testing](#testing)
-12. [Demo & Pitch](#demo--pitch)
-13. [Submission](#submission)
+8. [Sprint Plan](#sprint-plan)
+9. [Deployment](#deployment)
+10. [Testing](#testing)
+11. [Demo and Pitch](#demo-and-pitch)
+12. [Submission Checklist](#submission-checklist)
 
 ---
 
-# Diagrams & Maps
+# Diagrams and Maps
 
 ## 1. System Architecture
 
-```mermaid
-graph TD
-    subgraph Clients
-        CW[Chat Widget<br/>Embedded JS]
-        AD[Agent Dashboard<br/>React App]
-        AP[Admin Panel<br/>React App]
-    end
-
-    subgraph Load Balancer
-        NGINX[Nginx<br/>Round-Robin + ip_hash]
-    end
-
-    subgraph Application Layer
-        API1[Express Instance 1]
-        API2[Express Instance 2]
-        API3[Express Instance 3]
-    end
-
-    subgraph Data Layer
-        MONGO[(MongoDB Atlas<br/>Multi-Tenant Collections)]
-        REDIS[(Redis<br/>Cache + Pub/Sub + Rate Limits)]
-        LLM[OpenAI / Gemini API]
-    end
-
-    CW & AD & AP --> NGINX
-    NGINX -->|REST /api| API1 & API2 & API3
-    NGINX -->|WS /socket.io| API1 & API2 & API3
-
-    API1 & API2 & API3 <--> MONGO
-    API1 & API2 & API3 <--> REDIS
-    API1 & API2 & API3 --> LLM
-
-    REDIS -->|Pub/Sub| API1
-    REDIS -->|Pub/Sub| API2
-    REDIS -->|Pub/Sub| API3
-```
+![System Architecture](docs/architecture.png)
 
 ---
 
@@ -71,200 +36,55 @@ graph TD
 ```mermaid
 flowchart TD
     Start([User visits Velox]) --> IsAuth{Authenticated?}
-
     IsAuth -->|No| Landing[Landing Page /]
     Landing --> Login[Login /login]
     Landing --> Register[Register /register]
-    Register -->|Creates Tenant + Admin| Dashboard
+    Register -->|Creates Tenant + Admin| RoleCheck
     Login -->|JWT issued| RoleCheck{Role?}
-
     IsAuth -->|Yes| RoleCheck
-
-    RoleCheck -->|Admin| Dashboard[Agent Dashboard /dashboard]
-    RoleCheck -->|Agent| Dashboard
+    RoleCheck -->|Admin or Agent| Dashboard[Agent Dashboard /dashboard]
     RoleCheck -->|Viewer| Analytics[Analytics /analytics]
-
-    Dashboard --> Inbox[Ticket Inbox<br/>Left Panel]
-    Dashboard --> Chat[Active Chat<br/>Center Panel]
-    Dashboard --> Detail[Ticket Detail<br/>Right Panel]
-
+    Dashboard --> Inbox[Ticket Inbox - Left Panel]
+    Dashboard --> Chat[Active Chat - Center Panel]
+    Dashboard --> Detail[Ticket Detail - Right Panel]
     Chat --> AISuggest[AI Suggest Button]
     AISuggest --> Draft[Draft Reply]
     Draft --> Send[Agent Sends]
-
     Detail --> Resolve[Mark Resolved]
     Resolve --> Analytics
-
     Dashboard --> Admin[Admin Panel /admin]
     Admin --> Users[User Management]
     Admin --> FAQs[FAQ Manager]
     Admin --> AIConfig[AI Settings]
     Admin --> Widget[Widget Settings]
     Admin --> Routing[Routing Rules]
-
-    subgraph Customer Journey
+    subgraph CustomerJourney
         EmbedWidget([Customer visits business site]) --> OpenWidget[Opens Chat Widget]
         OpenWidget --> SendMsg[Sends Message]
         SendMsg --> AIReply{AI confidence > 0.7?}
-        AIReply -->|Yes| AutoReply[AI Auto-Reply]
-        AIReply -->|No| CreateTicket[Ticket Created + Routed]
+        AIReply -->|Yes| AutoReply[AI Auto-Reply from FAQ]
+        AIReply -->|No| CreateTicket[Ticket Created and Routed]
         CreateTicket --> AgentPick[Agent picks up in Dashboard]
     end
 ```
 
 ---
 
-## 3. Database Schema Relationships
+## 3. Database Schema
 
-```mermaid
-erDiagram
-    TENANT {
-        ObjectId _id
-        string name
-        string slug
-        string apiKey
-        string plan
-        object settings_ai
-        object settings_widget
-        array settings_routing
-        date createdAt
-    }
-
-    USER {
-        ObjectId _id
-        ObjectId tenantId
-        string name
-        string email
-        string passwordHash
-        string role
-        boolean isActive
-        date lastActive
-    }
-
-    TICKET {
-        ObjectId _id
-        ObjectId tenantId
-        ObjectId assignedTo
-        string title
-        string status
-        string priority
-        string category
-        object customer
-        array internalNotes
-        string aiSummary
-        date lastMessageAt
-        date resolvedAt
-    }
-
-    MESSAGE {
-        ObjectId _id
-        ObjectId tenantId
-        ObjectId ticketId
-        string senderType
-        ObjectId senderId
-        string content
-        boolean isAISuggestion
-        date createdAt
-    }
-
-    FAQ {
-        ObjectId _id
-        ObjectId tenantId
-        string question
-        string answer
-        string category
-        boolean isActive
-    }
-
-    ANALYTICS {
-        ObjectId _id
-        ObjectId tenantId
-        date date
-        number totalTickets
-        number resolvedByAI
-        number resolvedByAgent
-        number avgResponseTimeMs
-        object ticketsByPriority
-    }
-
-    TENANT ||--o{ USER : "has many"
-    TENANT ||--o{ TICKET : "has many"
-    TENANT ||--o{ FAQ : "has many"
-    TENANT ||--o{ ANALYTICS : "has many"
-    USER ||--o{ TICKET : "assigned to"
-    TICKET ||--o{ MESSAGE : "has many"
-    USER ||--o{ MESSAGE : "sends"
-```
+![Database Schema ERD](docs/db_schema.png)
 
 ---
 
 ## 4. Ticket Lifecycle
 
-```mermaid
-stateDiagram-v2
-    [*] --> open : Customer message received\nAI confidence below threshold\nor sentiment is angry
-
-    open --> in_progress : Agent opens ticket\nand starts responding
-
-    open --> resolved : AI auto-resolves\n(high confidence FAQ match)
-
-    in_progress --> resolved : Agent marks resolved
-
-    resolved --> open : Customer replies again\n(re-opened)
-
-    resolved --> closed : Admin closes ticket\nor auto-close after 7 days
-
-    in_progress --> closed : Admin force-closes
-
-    closed --> [*]
-
-    note right of open
-        AI Summary generated
-        Smart Routing assigns agent
-        Priority set by sentiment
-    end note
-
-    note right of in_progress
-        AI Suggestion available
-        Internal notes allowed
-        Real-time chat active
-    end note
-```
+![Ticket Lifecycle State Machine](docs/ticket_lifecycle.png)
 
 ---
 
 ## 5. AI Decision Flow
 
-```mermaid
-flowchart TD
-    MSG[Customer Message] --> CLASSIFY[AI: Classify Intent\nreturns intent + confidence + sentiment + priority]
-
-    CLASSIFY --> CONF{confidence >= 0.7?}
-
-    CONF -->|Yes| FAQ[Query FAQs\nby intent category]
-    CONF -->|No| TICKET_CREATE
-
-    FAQ --> MATCH{FAQ match found?}
-    MATCH -->|Yes| AUTOREPLY[Generate grounded auto-reply\nusing FAQ as context]
-    MATCH -->|No| TICKET_CREATE
-
-    AUTOREPLY --> SENTIMENT_CHECK{Sentiment angry\nor frustrated?}
-    SENTIMENT_CHECK -->|Yes| BUMP[Bump priority to urgent]
-    SENTIMENT_CHECK -->|No| SEND[Send reply to customer\nvia Socket.IO]
-    BUMP --> SEND
-
-    TICKET_CREATE[Create Ticket\nAI generates title from first message] --> ROUTE[Smart Routing Engine]
-
-    ROUTE --> CAT[Match intent category\nto agent specializations]
-    CAT --> AVAIL[Check Redis online agents set\nfor this tenant]
-    AVAIL --> ASSIGN[Assign to agent with\nlowest open ticket count]
-    ASSIGN --> NOTIFY[Emit ticket:assigned\nvia Socket.IO]
-    NOTIFY --> AGENT_OPEN[Agent opens ticket]
-    AGENT_OPEN --> SUGGEST[Agent clicks AI Suggest]
-    SUGGEST --> DRAFT[LLM drafts reply\nusing full conversation + FAQs]
-    DRAFT --> REVIEW[Agent reviews and edits]
-    REVIEW --> AGENT_SEND[Agent sends message]
-```
+![AI Decision Flow](docs/ai_flow.png)
 
 ---
 
@@ -272,29 +92,28 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    REQ[Incoming Request] --> HELM[1. Helmet\nSecurity Headers]
-    HELM --> CORS[2. CORS\nOrigin Whitelist]
-    CORS --> BODY[3. Body Parser\n10kb limit]
-    BODY --> SANIT[4. mongo-sanitize\nStrip $ operators]
-    SANIT --> XSS[5. xss-clean\nSanitize HTML]
-    XSS --> HPP[6. hpp\nPrevent param pollution]
-    HPP --> RATE[7. Rate Limiter\nRedis sliding window]
-    RATE --> AUTH[8. requireAuth\nVerify JWT]
-    AUTH --> ROLE[9. requireRole\nCheck permission]
-    ROLE --> TENANT[10. Tenant Middleware\nAttach req.tenant]
+    REQ[Incoming Request] --> HELM[1. Helmet]
+    HELM --> CORS[2. CORS]
+    CORS --> BODY[3. Body Parser 10kb]
+    BODY --> SANIT[4. mongo-sanitize]
+    SANIT --> XSS[5. xss-clean]
+    XSS --> HPP[6. hpp]
+    HPP --> RATE[7. Rate Limiter]
+    RATE --> AUTH[8. requireAuth]
+    AUTH --> ROLE[9. requireRole]
+    ROLE --> TENANT[10. Tenant Middleware]
     TENANT --> CTRL[Controller]
     CTRL --> SVC[Service]
     SVC --> DB[(MongoDB / Redis / LLM)]
-
-    RATE -->|429| ERR[Error Handler\nJSON response]
-    AUTH -->|401| ERR
-    ROLE -->|403| ERR
-    CTRL -->|500| ERR
+    RATE -->|429 Too Many| ERR[Error Handler]
+    AUTH -->|401 Unauthorized| ERR
+    ROLE -->|403 Forbidden| ERR
+    CTRL -->|500 Server Error| ERR
 ```
 
 ---
 
-# What We're Building
+# What We Are Building
 
 A multi-tenant platform where businesses embed a chat widget on their site. AI auto-resolves simple customer queries from a knowledge base, creates tickets for complex ones, routes them to human agents with AI-drafted replies, and surfaces analytics on everything.
 
@@ -304,7 +123,7 @@ A multi-tenant platform where businesses embed a chat widget on their site. AI a
 |---|---|
 | Basic chat + AI reply | AI routing + agent productivity + clean UX |
 | Single-tenant | Multi-tenant with strict data isolation |
-| No scaling story | Docker + Nginx + Redis Pub/Sub â€” 3 Node instances |
+| No scaling story | Docker + Nginx + Redis Pub/Sub -- 3 Node instances |
 | Basic Helmet | Full chain: CSP, HSTS, rate limiting, NoSQL sanitization |
 | Plain REST | REST + WebSockets via Socket.IO |
 
@@ -324,14 +143,14 @@ A multi-tenant platform where businesses embed a chat widget on their site. AI a
 | Layer | Choice | Reason |
 |-------|--------|--------|
 | Frontend | React + Vite | Fast dev, hackathon standard |
-| Styling | Vanilla CSS with design tokens | Neo-Brutalism compliance, full control |
+| Styling | Vanilla CSS with design tokens | Neo-Brutalism compliance |
 | State | Redux Toolkit | Hackathon requirement |
 | Real-time client | Socket.IO Client | Auto-reconnect, room-based |
 | Backend | Node.js + Express | MERN requirement |
 | Database | MongoDB + Mongoose | Document-based, multi-tenant friendly |
 | Cache + Pub/Sub | Redis (ioredis) | Sessions, rate limiting, Socket.IO adapter |
 | Security | Helmet + middleware chain | 11 headers, CSP, HSTS |
-| AI | OpenAI GPT-4o-mini or Gemini | Cloud LLM, no local models |
+| AI | OpenAI GPT-4o-mini or Gemini | Cloud LLM |
 | Containers | Docker + Docker Compose | Multi-instance orchestration |
 | Load balancer | Nginx | Round-robin + WebSocket upgrade |
 | Frontend deploy | Vercel | Free tier |
@@ -343,66 +162,49 @@ A multi-tenant platform where businesses embed a chat widget on their site. AI a
 
 # Architecture
 
-## System Diagram
-
-```mermaid
-graph TD
-    CW[Chat Widget] --> NGINX
-    AD[Agent Dashboard] --> NGINX
-    AP[Admin Panel] --> NGINX
-
-    NGINX[Nginx Load Balancer] --> API1[Express Instance 1]
-    NGINX --> API2[Express Instance 2]
-    NGINX --> API3[Express Instance 3]
-
-    API1 & API2 & API3 --> REDIS[(Redis)]
-    API1 & API2 & API3 --> MONGO[(MongoDB)]
-    API1 & API2 & API3 --> LLM[OpenAI / Gemini]
-```
-
-## Request Flow â€” The Happy Path
+## The Happy Path (full request flow)
 
 ```
-1. Customer opens widget â†’ Socket.IO connects with tenantId (from API key)
-2. Customer sends message â†’ hits Express via WebSocket
-3. AI classifies message â†’ returns { intent, confidence, sentiment, priority }
-4. confidence > 0.7? â†’ AI queries FAQs â†’ generates grounded reply â†’ sends back
-5. confidence < 0.7? â†’ ticket created â†’ routing engine assigns to agent
-6. Agent gets ticket:assigned event â†’ dashboard inbox updates in real-time
-7. Agent opens ticket â†’ AI pre-drafts a suggested reply based on conversation
-8. Agent reviews, edits, sends â†’ customer sees it instantly via WebSocket
-9. Ticket resolved â†’ analytics engine logs all metrics
+1. Customer opens widget -> Socket.IO connects with tenantId from API key
+2. Customer sends message -> hits Express via WebSocket
+3. AI classifies message -> returns { intent, confidence, sentiment, priority }
+4. confidence >= 0.7? -> AI queries FAQs -> generates grounded reply -> sends back
+5. confidence < 0.7? -> ticket created -> routing engine assigns to agent
+6. Agent gets ticket:assigned event -> dashboard inbox updates in real-time
+7. Agent opens ticket -> AI pre-drafts a suggested reply
+8. Agent reviews, edits, sends -> customer sees it instantly via WebSocket
+9. Ticket resolved -> analytics engine logs all metrics
 ```
 
 ## Middleware Stack (per request, in order)
 
 ```
-Request â†’ Helmet â†’ CORS â†’ Body limit (10kb) â†’ mongo-sanitize â†’ xss-clean
-       â†’ hpp â†’ Rate limiter â†’ requireAuth â†’ requireRole â†’ tenant middleware
-       â†’ Controller â†’ Service â†’ MongoDB / Redis / LLM
+Request -> Helmet -> CORS -> Body limit (10kb) -> mongo-sanitize -> xss-clean
+        -> hpp -> Rate limiter -> requireAuth -> requireRole -> tenant middleware
+        -> Controller -> Service -> MongoDB / Redis / LLM
 ```
 
 ---
 
 # Features
 
-## F1 â€” Multi-Tenant Architecture
+## F1 -- Multi-Tenant Architecture
 **Priority: Critical**
 
-Every document in every collection stores a `tenantId`. The tenant middleware extracts this from the decoded JWT and attaches it to `req.tenant`. Every single Mongoose query must filter by `{ tenantId: req.tenant }` â€” no exceptions. This is the #1 security concern.
+Every document stores a `tenantId`. The tenant middleware extracts this from the decoded JWT and attaches it to `req.tenant`. Every Mongoose query must filter by `{ tenantId: req.tenant }` -- no exceptions. This is the #1 security concern.
 
 - Register creates a Tenant document + first Admin user atomically
 - Widget connections authenticate via API key which maps to a tenantId
-- Index every collection on `tenantId` â€” it appears in every query
+- Index every collection on `tenantId`
 
-## F2 â€” Authentication & RBAC
+## F2 -- Authentication and RBAC
 **Priority: Critical**
 
 - Register: creates Tenant + Admin user in one call, returns JWT
-- Login: validates credentials, issues access token (15 min, in-memory) + refresh token (7 days, httpOnly cookie)
+- Login: issues access token (15 min, in-memory) + refresh token (7 days, httpOnly cookie)
 - JWT payload: `{ userId, tenantId, role }`
 - Passwords: bcrypt, 12 rounds
-- Logout: refresh token blacklisted in Redis with TTL
+- Logout: refresh token blacklisted in Redis
 
 **RBAC Matrix:**
 
@@ -417,96 +219,87 @@ Every document in every collection stores a `tenantId`. The tenant middleware ex
 | View Analytics | Y | N | N |
 | Assign Tickets | Y | N | N |
 
-## F3 â€” Real-Time Chat
+## F3 -- Real-Time Chat
 **Priority: Critical**
 
-Socket.IO with Redis adapter (`@socket.io/redis-adapter`) for multi-instance delivery. Each ticket is a Socket.IO room. Chat history loads via REST on page open; live updates via WebSocket thereafter. Typing indicators are broadcast but never persisted. Widget customers use a `sessionToken` in localStorage â€” no login required.
+Socket.IO with `@socket.io/redis-adapter` for multi-instance delivery. Each ticket is a Socket.IO room. Chat history loads via REST on page open; live updates via WebSocket thereafter. Typing indicators are broadcast but never persisted.
 
-## F4 â€” Ticketing System
+## F4 -- Ticketing System
 **Priority: Critical**
 
-Ticket lifecycle: `open â†’ in-progress â†’ resolved â†’ closed`
+Lifecycle: `open -> in-progress -> resolved -> closed`
 
-When AI confidence is below threshold or sentiment is angry, a ticket is created automatically. AI generates the title from the first message. Properties: status, priority (AI-assigned from sentiment), category (AI-classified intent), assigned agent, customer info, internal notes (agent-only), AI summary.
+When AI confidence is below threshold or sentiment is angry, a ticket is created automatically. AI generates the title from the first message. Priority is set by sentiment analysis.
 
-## F5 â€” AI Support Assistant
-**Priority: Critical â€” Core Differentiator**
+## F5 -- AI Support Assistant (Core Differentiator)
+**Priority: Critical**
 
-Four capabilities:
-
-| Capability | When it runs | What it does |
-|-----------|-------------|--------------|
+| Capability | Trigger | What it does |
+|-----------|---------|--------------|
 | Intent Classification | Every customer message | Returns intent, confidence, sentiment, priority |
-| Auto-Reply | confidence > 0.7, intent matches FAQ | Generates FAQ-grounded response, sends to customer |
+| Auto-Reply | confidence >= 0.7 and FAQ match | FAQ-grounded response sent to customer |
 | Agent Suggestion | Agent clicks "AI Suggest" | Drafts reply from full conversation + FAQs |
-| Summarization | Agent clicks "AI Summarize" | 2-3 sentence summary, stored on ticket |
+| Summarization | Agent clicks "AI Summarize" | 2-3 sentence summary stored on ticket |
 
-**Smart Routing (when ticket is created):**
-1. Match intent category to agent specializations (admin-configured)
-2. If sentiment is angry/frustrated â€” bump priority to urgent
-3. Query Redis for online agents in this tenant
-4. Assign to the available agent with lowest open ticket count
+**Smart Routing:** Match intent to agent specializations -> bump priority if sentiment angry -> check Redis online agents -> assign lowest-load available agent.
 
-**Anti-hallucination:** AI is always grounded in the tenant's FAQ data. If it cannot answer from context, it outputs `{ escalate: true }` and a ticket is created. Confidence thresholds are configurable per tenant. Agent suggestions are drafts only â€” never auto-sent.
+**Anti-hallucination:** AI is always grounded in tenant FAQ data. If it cannot answer from context, it outputs `{ escalate: true }` and a ticket is created. Agent suggestions are drafts only -- never auto-sent.
 
-## F6 â€” Agent Dashboard
+## F6 -- Agent Dashboard
 **Priority: Critical**
 
-Three-panel layout: Ticket Inbox (left) | Active Chat Thread (center) | Ticket Details (right)
+Three-panel layout:
+- Left: Ticket Inbox -- filter by Assigned to Me / Unassigned / Urgent / All Open
+- Center: Chat Thread -- color-coded bubbles (customer = lavender, agent = white, AI = green dashed)
+- Right: Ticket Details -- status/priority/agent dropdowns, internal notes, AI Summarize button
 
-- Inbox: filter by Assigned to Me / Unassigned / Urgent / All Open. Each card shows customer name, last message preview, priority badge, time since last activity
-- Chat: message bubbles color-coded by sender. AI messages have dashed border and sparkle icon. Typing indicator animates in real-time
-- Details: status/priority dropdowns, agent assignment, internal notes, AI Summarize button
-
-## F7 â€” Admin Panel
+## F7 -- Admin Panel
 **Priority: Critical**
-
-Tabbed interface with five sections:
 
 | Tab | What it does |
 |-----|-------------|
 | Users | Invite agents, change roles, deactivate accounts |
-| FAQ Manager | CRUD for knowledge base. These entries feed the AI directly |
-| AI Settings | Toggle auto-reply, set confidence threshold, tone, model |
-| Widget Settings | Customize widget colors, greeting, get embed script |
+| FAQ Manager | CRUD for knowledge base -- feeds the AI directly |
+| AI Settings | Toggle auto-reply, confidence threshold, tone, model |
+| Widget Settings | Customize widget, get embed code |
 | Routing Rules | Map intent categories to specific agents |
 
-## F8 â€” Analytics Dashboard
+## F8 -- Analytics Dashboard
 **Priority: High**
 
-| Metric | Display |
-|--------|---------|
+| Metric | Target |
+|--------|--------|
 | Total Tickets | Stat card with trend |
-| AI Resolution Rate | Target >= 40% |
-| Avg Response Time | Target < 2s for AI |
+| AI Resolution Rate | >= 40% |
+| Avg Response Time | < 2s for AI replies |
 | Avg Resolution Time | Stat card |
-| Ticket Volume Over Time | Line chart (7/30 day toggle) |
+| Ticket Volume | Line chart (7/30 day toggle) |
 | Tickets by Priority | Bar chart |
-| Agent Performance | Table: name, resolved, avg time, online status |
+| Agent Performance | Table with resolved count and avg time |
 
-## F9 â€” Embeddable Chat Widget
+## F9 -- Embeddable Chat Widget
 **Priority: Critical**
 
-A standalone React component served as an embeddable script. Businesses add one `<script>` tag with their API key. Widget has fully scoped CSS (shadow DOM), connects via Socket.IO with the API key, manages customer sessions via localStorage. Features: minimize/maximize, unread badge, typing indicator, timestamps.
+Businesses add one `<script>` tag with their API key. Widget has fully scoped CSS, connects via Socket.IO with the API key, manages customer sessions via localStorage. Features: minimize/maximize, unread badge, typing indicator.
 
 ---
 
 # Pages
 
-| Route | Access | What's on it |
+| Route | Access | Description |
 |-------|--------|-------------|
-| `/` | Public | Landing â€” hero, How It Works, feature cards, comparison table |
-| `/login` | Public | Email + password, link to register |
-| `/register` | Public | Business name, name, email, password â€” creates tenant + admin |
-| `/dashboard` | Agent+ | Three-panel: Ticket Inbox + Chat + Ticket Details |
-| `/admin` | Admin | Tabbed: Users, FAQs, AI Settings, Widget, Routing |
+| `/` | Public | Landing -- hero, How It Works, feature cards, comparison |
+| `/login` | Public | Email + password form |
+| `/register` | Public | Business name, name, email, password -- creates tenant + admin |
+| `/dashboard` | Agent+ | Three-panel: Inbox + Chat + Ticket Details |
+| `/admin` | Admin | Tabs: Users, FAQs, AI Settings, Widget, Routing |
 | `/analytics` | Admin | Stat cards + charts + agent table |
 | `/settings` | Auth | Edit profile, change password, logout |
-| Widget (embedded) | Public | Floating chat bubble â†’ chat window |
+| Widget | Public (embedded) | Floating chat bubble -> chat window |
 ---
 
 # Backend Team
-**Akshat & Mayank â€” Node.js, Express, MongoDB, Redis, AI, Docker, Nginx**
+**Akshat and Mayank -- Node.js, Express, MongoDB, Redis, AI, Docker, Nginx**
 
 ---
 
@@ -518,15 +311,15 @@ backend/
 â”‚   â”œâ”€â”€ config/
 â”‚   â”‚   â”œâ”€â”€ db.js               MongoDB connection with retry logic
 â”‚   â”‚   â”œâ”€â”€ redis.js            ioredis client setup
-â”‚   â”‚   â””â”€â”€ env.js              dotenv loader â€” fails fast if vars missing
+â”‚   â”‚   â””â”€â”€ env.js              dotenv loader -- fails fast if vars missing
 â”‚   â”œâ”€â”€ middleware/
 â”‚   â”‚   â”œâ”€â”€ auth.js             Verifies JWT, attaches req.user
-â”‚   â”‚   â”œâ”€â”€ rbac.js             requireRole('admin') â€” checks req.user.role
+â”‚   â”‚   â”œâ”€â”€ rbac.js             requireRole('admin') -- checks req.user.role
 â”‚   â”‚   â”œâ”€â”€ tenant.js           Extracts tenantId from JWT, attaches req.tenant
 â”‚   â”‚   â”œâ”€â”€ rateLimiter.js      Redis-backed sliding window rate limiter
 â”‚   â”‚   â”œâ”€â”€ security.js         Helmet + CORS + mongo-sanitize + xss + hpp
 â”‚   â”‚   â”œâ”€â”€ validate.js         Joi/Zod schema validation per route
-â”‚   â”‚   â””â”€â”€ errorHandler.js     Global error handler â€” consistent JSON format
+â”‚   â”‚   â””â”€â”€ errorHandler.js     Global error handler -- consistent JSON format
 â”‚   â”œâ”€â”€ models/
 â”‚   â”‚   â”œâ”€â”€ Tenant.js
 â”‚   â”‚   â”œâ”€â”€ User.js
@@ -542,9 +335,9 @@ backend/
 â”‚   â”‚   â”œâ”€â”€ ai.routes.js
 â”‚   â”‚   â”œâ”€â”€ analytics.routes.js
 â”‚   â”‚   â””â”€â”€ widget.routes.js
-â”‚   â”œâ”€â”€ controllers/            One file per route group, thin â€” calls services
+â”‚   â”œâ”€â”€ controllers/            One file per route group, thin -- delegates to services
 â”‚   â”œâ”€â”€ services/
-â”‚   â”‚   â”œâ”€â”€ ai.service.js       LLM integration â€” classify, suggest, summarize, auto-reply
+â”‚   â”‚   â”œâ”€â”€ ai.service.js       LLM integration -- classify, suggest, summarize, auto-reply
 â”‚   â”‚   â”œâ”€â”€ routing.service.js  Smart ticket routing logic
 â”‚   â”‚   â”œâ”€â”€ cache.service.js    Redis get/set/del helpers with TTL
 â”‚   â”‚   â””â”€â”€ analytics.service.js  Aggregation pipeline builders
@@ -557,7 +350,7 @@ backend/
 â”‚   â”‚   â”œâ”€â”€ generateToken.js    JWT sign/verify helpers
 â”‚   â”‚   â”œâ”€â”€ prompts.js          All LLM prompt templates
 â”‚   â”‚   â””â”€â”€ apiKey.js           Widget API key generation and validation
-â”‚   â””â”€â”€ server.js               Entry point â€” Express + Socket.IO + middleware chain
+â”‚   â””â”€â”€ server.js               Entry point -- Express + Socket.IO + middleware chain
 â”œâ”€â”€ Dockerfile
 â”œâ”€â”€ .env.example
 â””â”€â”€ package.json
@@ -571,10 +364,10 @@ backend/
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `_id` | ObjectId | â€” |
+| `_id` | ObjectId | -- |
 | `name` | String | "Acme Corp" |
-| `slug` | String | unique, indexed â€” "acme-corp" |
-| `apiKey` | String | unique, indexed â€” for widget auth |
+| `slug` | String | unique, indexed |
+| `apiKey` | String | unique, indexed -- for widget auth |
 | `plan` | String | "free" / "pro" / "enterprise" |
 | `settings.ai.enabled` | Boolean | default true |
 | `settings.ai.model` | String | "gpt-4o-mini" |
@@ -584,10 +377,9 @@ backend/
 | `settings.widget.accentColor` | String | default "#00E676" |
 | `settings.widget.greeting` | String | "Hi! How can we help?" |
 | `settings.routing` | Array | `[{ category, assignTo: UserId }]` |
-| `createdBy` | ObjectId | ref User |
-| `createdAt` | Date | â€” |
+| `createdAt` | Date | -- |
 
-**Indexes:** `{ slug: 1 }`, `{ apiKey: 1 }`
+Indexes: `{ slug: 1 }`, `{ apiKey: 1 }`
 
 ---
 
@@ -595,8 +387,8 @@ backend/
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `tenantId` | ObjectId | ref Tenant â€” in every query |
-| `name` | String | â€” |
+| `tenantId` | ObjectId | ref Tenant -- in every query |
+| `name` | String | -- |
 | `email` | String | unique per tenant |
 | `passwordHash` | String | bcrypt 12 rounds |
 | `role` | String | "admin" / "agent" / "viewer" |
@@ -604,7 +396,7 @@ backend/
 | `lastActive` | Date | updated on each authenticated request |
 | `refreshToken` | String | hashed, for validation |
 
-**Indexes:** `{ tenantId: 1, email: 1 }` compound unique, `{ tenantId: 1, role: 1 }`
+Indexes: `{ tenantId: 1, email: 1 }` compound unique, `{ tenantId: 1, role: 1 }`
 
 ---
 
@@ -621,13 +413,13 @@ backend/
 | `customer.name` | String | from widget or "Anonymous" |
 | `customer.email` | String | optional |
 | `customer.sessionToken` | String | widget session ID |
-| `internalNotes` | Array | `[{ author, content, createdAt }]` â€” agent-only |
+| `internalNotes` | Array | `[{ author, content, createdAt }]` -- agent-only |
 | `aiSummary` | String | AI-generated, updated on demand |
 | `messageCount` | Number | denormalized for performance |
-| `lastMessageAt` | Date | for inbox sort by recency |
+| `lastMessageAt` | Date | for inbox sort |
 | `resolvedAt` | Date | nullable |
 
-**Indexes:** `{ tenantId: 1, status: 1 }`, `{ tenantId: 1, assignedTo: 1 }`, `{ tenantId: 1, createdAt: -1 }`
+Indexes: `{ tenantId: 1, status: 1 }`, `{ tenantId: 1, assignedTo: 1 }`, `{ tenantId: 1, createdAt: -1 }`
 
 ---
 
@@ -635,15 +427,15 @@ backend/
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `tenantId` | ObjectId | â€” |
-| `ticketId` | ObjectId | ref Ticket â€” indexed |
+| `tenantId` | ObjectId | -- |
+| `ticketId` | ObjectId | ref Ticket -- indexed |
 | `senderType` | String | "customer" / "agent" / "ai" |
 | `senderId` | ObjectId | ref User, null for customers |
-| `content` | String | â€” |
+| `content` | String | -- |
 | `isAISuggestion` | Boolean | true if AI draft was accepted by agent |
-| `createdAt` | Date | â€” |
+| `createdAt` | Date | -- |
 
-**Indexes:** `{ ticketId: 1, createdAt: 1 }` compound â€” for paginated chat history
+Indexes: `{ ticketId: 1, createdAt: 1 }` compound
 
 ---
 
@@ -651,13 +443,13 @@ backend/
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `tenantId` | ObjectId | â€” |
-| `question` | String | â€” |
-| `answer` | String | â€” |
+| `tenantId` | ObjectId | -- |
+| `question` | String | -- |
+| `answer` | String | -- |
 | `category` | String | used for intent-to-FAQ mapping |
 | `isActive` | Boolean | default true |
 
-**Indexes:** `{ tenantId: 1, category: 1 }`, `{ tenantId: 1, isActive: 1 }`
+Indexes: `{ tenantId: 1, category: 1 }`, `{ tenantId: 1, isActive: 1 }`
 
 ---
 
@@ -665,29 +457,29 @@ backend/
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `tenantId` | ObjectId | â€” |
+| `tenantId` | ObjectId | -- |
 | `date` | Date | truncated to day |
-| `totalTickets` | Number | â€” |
-| `resolvedByAI` | Number | â€” |
-| `resolvedByAgent` | Number | â€” |
-| `avgResponseTimeMs` | Number | â€” |
-| `avgResolutionTimeMs` | Number | â€” |
+| `totalTickets` | Number | -- |
+| `resolvedByAI` | Number | -- |
+| `resolvedByAgent` | Number | -- |
+| `avgResponseTimeMs` | Number | -- |
+| `avgResolutionTimeMs` | Number | -- |
 | `ticketsByPriority` | Object | `{ low, medium, high, urgent }` |
 | `ticketsByCategory` | Map | `{ "billing": 5, "technical": 3 }` |
 
-**Indexes:** `{ tenantId: 1, date: -1 }`
+Indexes: `{ tenantId: 1, date: -1 }`
 
 ---
 
 ## API Routes
 
-### Auth â€” `/api/auth`
+### Auth -- `/api/auth`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | POST | `/register` | No | Creates Tenant + Admin user, returns JWT |
 | POST | `/login` | No | Returns access token + sets refresh cookie |
-| POST | `/refresh` | No (cookie) | Issues new token pair, blacklists old |
+| POST | `/refresh` | Cookie | Issues new token pair, blacklists old |
 | POST | `/logout` | Yes | Blacklists refresh token in Redis |
 | GET | `/me` | Yes | Returns current user (no passwordHash) |
 | PUT | `/profile` | Yes | Update name or email |
@@ -695,75 +487,72 @@ backend/
 
 ---
 
-### Tickets â€” `/api/tickets`
+### Tickets -- `/api/tickets`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/` | Agent+ | List tickets â€” query: `status`, `assignedTo`, `priority`, `page`, `limit`, `sort` |
+| GET | `/` | Agent+ | List tickets with filters: `status`, `assignedTo`, `priority`, `page`, `limit` |
 | POST | `/` | Any | Create ticket + trigger AI classification + routing |
 | GET | `/:id` | Agent+ | Ticket detail with populated assignedTo |
 | PATCH | `/:id` | Agent+ | Update status, priority, assignment, category |
 | POST | `/:id/assign` | Admin | Assign to agent |
 | POST | `/:id/notes` | Agent+ | Add internal note (agent-only) |
-| DELETE | `/:id` | Admin | Soft delete (sets status to closed) |
+| DELETE | `/:id` | Admin | Soft delete -- sets status to closed |
 
 ---
 
-### Chat â€” `/api/chat`
+### Chat -- `/api/chat`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/:ticketId/messages` | Any | Send message â€” persists to DB + broadcasts via Socket.IO |
+| POST | `/:ticketId/messages` | Any | Send message -- persists to DB + broadcasts via Socket.IO |
 | GET | `/:ticketId/messages` | Agent+ | Paginated history, sorted ascending by createdAt |
 
 ---
 
-### AI â€” `/api/ai`
+### AI -- `/api/ai`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/classify` | Internal | Classify message intent â†’ `{ intent, confidence, sentiment, priority }` |
-| POST | `/suggest-reply` | Agent+ | Load conversation + FAQs â†’ return draft reply |
-| POST | `/summarize/:ticketId` | Agent+ | Summarize thread â†’ update ticket.aiSummary |
+| POST | `/classify` | Internal | Classify intent -> `{ intent, confidence, sentiment, priority }` |
+| POST | `/suggest-reply` | Agent+ | Full conversation + FAQs -> draft reply |
+| POST | `/summarize/:ticketId` | Agent+ | Summarize thread -> update ticket.aiSummary |
 | POST | `/auto-reply` | Internal | FAQ-grounded auto-reply for customer |
 
 ---
 
-### Admin â€” `/api/admin`
+### Admin -- `/api/admin`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/users` | Admin | List all users in tenant |
-| POST | `/users/invite` | Admin | Create agent/viewer account |
+| GET/POST | `/users` `/users/invite` | Admin | List users / create agent account |
 | PATCH | `/users/:id/role` | Admin | Change role |
 | PATCH | `/users/:id/status` | Admin | Activate / deactivate |
 | GET/POST | `/faqs` | Admin | List / create FAQs |
 | PUT/DELETE | `/faqs/:id` | Admin | Update / delete FAQ |
 | GET | `/settings` | Admin | All tenant settings |
-| PUT | `/settings/ai` | Admin | Update AI config |
-| PUT | `/settings/widget` | Admin | Update widget config |
-| PUT | `/settings/routing` | Admin | Update routing rules |
+| PUT | `/settings/ai` `/settings/widget` `/settings/routing` | Admin | Update settings |
 
 ---
 
-### Analytics â€” `/api/analytics`
+### Analytics -- `/api/analytics`
 
 All routes: Admin only. All accept `?from=YYYY-MM-DD&to=YYYY-MM-DD`.
 
-| Method | Endpoint | Returns |
-|--------|----------|---------|
-| GET | `/overview` | Stat card totals and averages |
-| GET | `/trends` | Ticket volume over time array |
-| GET | `/agents` | Per-agent performance stats |
-| GET | `/categories` | Tickets grouped by category |
+| Endpoint | Returns |
+|----------|---------|
+| GET `/overview` | Stat card totals and averages |
+| GET `/trends` | Ticket volume over time |
+| GET `/agents` | Per-agent performance stats |
+| GET `/categories` | Tickets grouped by category |
 
 ---
 
-### Widget â€” `/api/widget`
+### Widget -- `/api/widget`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/config/:apiKey` | None (public) | Widget display config â€” greeting, colors |
+| GET | `/config/:apiKey` | None (public) | Widget display config |
 | POST | `/session` | API key | Create or resume customer session |
 
 ---
@@ -771,8 +560,8 @@ All routes: Admin only. All accept `?from=YYYY-MM-DD&to=YYYY-MM-DD`.
 ## Socket.IO Events
 
 **Connection auth:**
-- Agents connect with `{ auth: { token: "<JWT>" } }`
-- Widget connects with `{ auth: { apiKey: "tk_...", sessionToken: "sess_..." } }`
+- Agents: `{ auth: { token: "<JWT>" } }`
+- Widget: `{ auth: { apiKey: "tk_...", sessionToken: "sess_..." } }`
 
 ### Client to Server
 
@@ -780,9 +569,9 @@ All routes: Admin only. All accept `?from=YYYY-MM-DD&to=YYYY-MM-DD`.
 |-------|---------|-------------|
 | `chat:join` | `{ ticketId }` | Join a ticket room |
 | `chat:leave` | `{ ticketId }` | Leave a ticket room |
-| `chat:send` | `{ ticketId, content, senderType }` | Send message â€” server persists + broadcasts |
-| `chat:typing` | `{ ticketId }` | Broadcast typing indicator â€” never persisted |
-| `agent:status` | `{ status }` | "online" or "away" â€” updates Redis set |
+| `chat:send` | `{ ticketId, content, senderType }` | Send message -- server persists + broadcasts |
+| `chat:typing` | `{ ticketId }` | Broadcast typing indicator -- never persisted |
+| `agent:status` | `{ status }` | "online" or "away" -- updates Redis set |
 
 ### Server to Client
 
@@ -790,7 +579,7 @@ All routes: Admin only. All accept `?from=YYYY-MM-DD&to=YYYY-MM-DD`.
 |-------|---------|---------|
 | `chat:message` | `{ message }` | New message in ticket room |
 | `chat:typing` | `{ ticketId, user }` | Someone is typing |
-| `ticket:new` | `{ ticket }` | New ticket created â€” broadcast to all tenant agents |
+| `ticket:new` | `{ ticket }` | New ticket -- broadcast to all tenant agents |
 | `ticket:updated` | `{ ticket }` | Status/priority/assignment changed |
 | `ticket:assigned` | `{ ticket, agentId }` | Assigned to specific agent |
 | `notification:new` | `{ type, data }` | General notification |
@@ -799,41 +588,17 @@ All routes: Admin only. All accept `?from=YYYY-MM-DD&to=YYYY-MM-DD`.
 
 ---
 
-## AI System Design
+## AI Prompt Design
 
-### Decision Flow
+All four prompts live in `utils/prompts.js`.
 
-```
-Customer message arrives
-        |
-        v
-    [Classify via LLM]
-        |
-        v
-  confidence >= 0.7?
-   Yes          No
-    |            |
-    v            v
-[FAQ match?]  [Create Ticket]
-  Yes  No       |
-   |    |       v
-   |    |   [Smart Routing]
-   v    v       |
-[Auto  [Esc-   v
-Reply] alate] [Assign Agent]
-```
+**Classification prompt:** Provide tenant name and list of FAQ categories as labels. Ask for intent, confidence (0.0-1.0), sentiment (positive/neutral/frustrated/angry), and suggested priority. Request JSON response.
 
-### Prompt Design
+**Auto-reply prompt:** Provide tenant name, tone setting, FAQ answers filtered by classified intent, and last 5 messages as context. Instruct: only use provided context; if unable to answer return `{ escalate: true }`; never invent information.
 
-All four prompts live in `utils/prompts.js`. Here is what each must contain:
+**Agent suggestion prompt:** Provide tenant name, full ticket conversation, relevant FAQs, ticket category and priority. Ask for a professional draft reply. Frame it as a draft for the agent to review -- not a final send.
 
-**Classification prompt** â€” Provide: tenant name, list of FAQ categories as labels. Ask for: intent, confidence (0.0-1.0), sentiment (positive/neutral/frustrated/angry), suggested priority. Request JSON response.
-
-**Auto-reply prompt** â€” Provide: tenant name, tone setting, FAQ answers filtered by classified intent, last 5 messages as context. Instruct: only use provided context; if unable to answer, return `{ escalate: true }`; never invent information.
-
-**Agent suggestion prompt** â€” Provide: tenant name, full ticket conversation, relevant FAQs, ticket category and priority. Ask for a professional draft reply. Frame it as a draft for the agent to review, not a final send.
-
-**Summarization prompt** â€” Provide: all messages in the ticket. Ask for: 2-3 sentences covering what the customer needed, what was done, and current status.
+**Summarization prompt:** Provide all messages in the ticket. Ask for 2-3 sentences covering what the customer needed, what was done, and current status.
 
 ---
 
@@ -841,77 +606,73 @@ All four prompts live in `utils/prompts.js`. Here is what each must contain:
 
 ### Middleware Chain (order is critical)
 
-Apply in this exact order in `server.js` before mounting any routes:
+Apply in this exact order in `server.js`:
 
-1. `helmet()` â€” sets 11 security headers including X-Frame-Options, X-Content-Type-Options
-2. `helmet.contentSecurityPolicy()` â€” restrict script/style/font/connect sources to known origins
-3. `helmet.hsts()` â€” enforce HTTPS for 1 year including subdomains
-4. `cors()` â€” whitelist only the frontend URL and widget URL; require credentials
-5. `express.json({ limit: '10kb' })` â€” reject oversized payloads
-6. `mongoSanitize()` â€” strip `$` and `.` operators from body/query/params
-7. `xss()` â€” sanitize HTML entities in user input
-8. `hpp()` â€” prevent HTTP parameter pollution
-9. Global rate limiter â€” 100 req/min per IP
-10. Auth-specific rate limiter on `/api/auth` â€” 5 req/min per IP
+1. `helmet()` -- sets 11 security headers
+2. `helmet.contentSecurityPolicy()` -- restrict script/style/font sources
+3. `helmet.hsts()` -- enforce HTTPS for 1 year
+4. `cors()` -- whitelist only frontend URL and widget URL
+5. `express.json({ limit: '10kb' })` -- reject oversized payloads
+6. `mongoSanitize()` -- strip `$` and `.` operators from input
+7. `xss()` -- sanitize HTML entities
+8. `hpp()` -- prevent HTTP parameter pollution
+9. Global rate limiter -- 100 req/min per IP
+10. Auth-specific rate limiter on `/api/auth` -- 5 req/min per IP
 
 ### Attack Coverage
 
 | Attack | Defense |
 |--------|---------|
-| XSS | Helmet CSP blocks inline scripts + `xss-clean` sanitizes input + React escapes JSX |
-| NoSQL Injection | `express-mongo-sanitize` strips `$gt`, `$ne`, `$or` operators |
-| Brute Force | Redis rate limiter: 5 req/min on auth routes â†’ 429 |
-| DDoS | App-level rate limiter + Nginx `limit_req_zone` and `limit_conn_zone` |
+| XSS | Helmet CSP + xss-clean + React auto-escapes JSX |
+| NoSQL Injection | mongo-sanitize strips `$gt`, `$ne`, `$or` operators |
+| Brute Force | Redis rate limiter: 5 req/min on auth routes -> 429 |
+| DDoS | App-level rate limiter + Nginx `limit_req_zone` |
 | CSRF | SameSite=Strict cookie + CORS origin whitelist |
-| JWT Theft | Access token in-memory only (15 min). Refresh token httpOnly cookie. Logout blacklists in Redis |
-| Cross-Tenant Data Leak | Every Mongoose query filtered by `tenantId: req.tenant` â€” #1 audit target |
+| JWT Theft | Access token in-memory (15 min). Refresh token httpOnly cookie. Logout blacklists in Redis |
+| Cross-Tenant Data Leak | Every Mongoose query filtered by `tenantId: req.tenant` |
 | Large Payload | `express.json({ limit: '10kb' })` |
 | Clickjacking | `X-Frame-Options: DENY` via Helmet |
 
-### JWT Storage Strategy
+### JWT Strategy
 
 | Token | Storage | Expiry | Notes |
 |-------|---------|--------|-------|
 | Access | Redux store (in-memory) | 15 min | Never localStorage. Sent as `Authorization: Bearer` |
 | Refresh | httpOnly Secure SameSite=Strict cookie | 7 days | Unreadable by JS |
-| Blacklist | Redis key `bl:<jti>` | Matches token TTL | Checked in auth middleware before JWT verification |
+| Blacklist | Redis key `bl:<jti>` | Matches token TTL | Checked before JWT verification |
 
 ---
 
 ## Horizontal Scaling
 
-### Why It's Needed
+### The Problem
 
-With a single Node.js instance, Socket.IO works fine â€” all clients share one process. With 3 instances behind Nginx, Client A (on Instance 1) and Client B (on Instance 3) can't communicate without a shared message bus. Redis is that bus.
+With a single Node.js instance, Socket.IO works fine. With 3 instances behind Nginx, Client A (Instance 1) and Client B (Instance 3) cannot communicate without a shared message bus.
 
-### Redis Pub/Sub for Socket.IO
+### The Solution
 
-Configure Socket.IO with `@socket.io/redis-adapter`. Create two Redis clients (pub + sub). When Instance 1 receives a `chat:send`, it saves the message and emits `chat:message`. The Redis adapter publishes this â€” Instances 2 and 3 subscribe, receive it, and deliver to their local connected clients. Zero messages lost.
+Configure Socket.IO with `@socket.io/redis-adapter`. Create two Redis clients (pub + sub). When Instance 1 receives `chat:send`, it saves the message and emits `chat:message`. The Redis adapter publishes this to Redis -- Instances 2 and 3 subscribe, receive it, and deliver to their local clients.
 
-### Docker Compose Setup
+### Docker Compose Services
 
-Orchestrate these 6 services:
-- `nginx` â€” exposed on port 80, proxies to the three API instances
-- `api-1`, `api-2`, `api-3` â€” identical Express builds, each with a unique `INSTANCE_ID` env var. Use YAML anchors (`&api-base`) to avoid repetition
-- `mongo` â€” MongoDB 7 with volume mount
-- `redis` â€” Redis 7 Alpine with AOF persistence enabled
+- `nginx` -- exposed on port 80, round-robin to 3 API instances
+- `api-1`, `api-2`, `api-3` -- identical Express builds, each with unique `INSTANCE_ID` env var. Use YAML anchors to avoid repetition
+- `mongo` -- MongoDB 7 with volume mount
+- `redis` -- Redis 7 Alpine with AOF persistence enabled
 
-### Nginx Configuration
+### Nginx Config
 
 Two location blocks:
-- `/api/` â€” standard round-robin proxy. Set `X-Real-IP` and `X-Forwarded-For` headers so the Node app sees the actual client IP for rate limiting
-- `/socket.io/` â€” requires `Upgrade` and `Connection: upgrade` headers. Use `ip_hash` for sticky sessions during Socket.IO long-polling fallback. Rate limiting does not apply here
-
-Also define `limit_req_zone` and `limit_conn_zone` directives in Nginx for connection-level DDoS protection.
+- `/api/` -- round-robin proxy. Set `X-Real-IP` and `X-Forwarded-For` so the app sees the real client IP for rate limiting
+- `/socket.io/` -- requires `Upgrade` and `Connection: upgrade` headers. Use `ip_hash` for sticky sessions during Socket.IO long-polling fallback
 
 ### Verifying It Works
 
-1. `docker-compose up --build` â€” 3 instances + Redis + Mongo + Nginx
-2. Log into two different browsers as two different agents
-3. Open the same ticket in both browsers
-4. Send a message from Browser 1 â€” it should appear instantly in Browser 2
-5. Check Docker logs to confirm the two requests hit different instance IDs
-6. Run `docker-compose stop api-2` â€” app should continue working on instances 1 and 3
+1. `docker-compose up --build` -- 3 instances + Redis + Mongo + Nginx
+2. Login as two different agents in two browsers
+3. Open the same ticket in both -- send a message from Browser 1, it appears in Browser 2
+4. Check Docker logs -- confirm the two requests hit different instance IDs
+5. `docker-compose stop api-2` -- app continues on instances 1 and 3
 
 ---
 
@@ -925,63 +686,60 @@ Also define `limit_req_zone` and `limit_conn_zone` directives in Nginx for conne
 | Ticket list cache | `tenant:<id>:tickets:page:<n>` | 30 sec |
 | FAQ cache per category | `tenant:<id>:faqs:<category>` | 5 min |
 | Analytics cache | `tenant:<id>:analytics:<range>` | 2 min |
-| Online agents | `tenant:<id>:agents:online` (Set) | No expiry â€” updated by agent:status |
-| Socket.IO Pub/Sub | Managed by adapter internally | â€” |
+| Online agents | `tenant:<id>:agents:online` (Set) | No expiry |
+| Socket.IO Pub/Sub | Managed by adapter | -- |
 
-**Invalidation:**
+**Invalidation rules:**
 - On FAQ create/update/delete: invalidate `tenant:<id>:faqs:*`
 - On ticket status change: invalidate matching ticket cache keys
-- Ticket list and analytics caches expire naturally by TTL
+- Ticket list and analytics caches expire by TTL
 
 ---
 
 ## Backend Task List
 
-| # | Task | Priority | Est. Hours |
-|---|------|----------|------------|
-| B1 | Express project setup, folder structure, dotenv, env validation | Critical | 2h |
+| # | Task | Priority | Hours |
+|---|------|----------|-------|
+| B1 | Express setup, folder structure, dotenv, env validation | Critical | 2h |
 | B2 | MongoDB connection with retry + all 6 Mongoose models | Critical | 3h |
-| B3 | Auth: register (Tenant+User), login, JWT, refresh, `/me`, logout | Critical | 6h |
-| B4 | Tenant middleware â€” extract tenantId from JWT, attach req.tenant | Critical | 1h |
-| B5 | Ticket CRUD â€” list (paginated+filtered), create, get, update, notes | Critical | 5h |
-| B6 | Chat messages â€” send (persist+broadcast), paginated history | Critical | 4h |
-| B7 | Socket.IO server setup with Redis adapter + socket auth middleware | Critical | 5h |
-| B8 | Socket event handlers â€” chatHandler, notificationHandler | Critical | 4h |
-| B9 | AI service â€” intent classification (LLM call + JSON parse) | Critical | 4h |
-| B10 | AI service â€” FAQ-grounded auto-reply + escalation fallback | Critical | 4h |
-| B11 | AI service â€” agent suggestion endpoint | High | 3h |
-| B12 | AI service â€” conversation summarization | High | 2h |
-| B13 | Smart routing service â€” category mapping + sentiment + availability | High | 4h |
-| B14 | Admin endpoints â€” users, FAQ CRUD, all settings | High | 5h |
-| B15 | Analytics endpoints â€” aggregation pipelines | High | 4h |
-| B16 | Widget endpoints â€” public config + session | High | 2h |
-| B17 | Security middleware chain â€” full Helmet + sanitize + xss + hpp | Critical | 3h |
-| B18 | Redis-backed rate limiter â€” global + auth-specific | Critical | 2h |
-| B19 | Redis client + cache service helpers + token blacklist functions | Critical | 2h |
-| B20 | Global error handler â€” consistent JSON, async wrapper | Critical | 1h |
-| B21 | Input validation â€” Joi/Zod schemas for all endpoints | High | 3h |
-| B22 | Dockerfile â€” multi-stage build | Critical | 2h |
-| B23 | Docker Compose â€” 3 instances + Redis + Mongo + Nginx, YAML anchors | Critical | 3h |
-| B24 | Nginx config â€” round-robin REST + ip_hash WebSocket + rate limits | Critical | 2h |
-| B25 | Deploy to Render/Railway + configure env vars + verify live URL | Critical | 3h |
-| B26 | MongoDB compound indexes on all collections, verify with .explain() | High | 1h |
-| B27 | Load test with autocannon â€” all major endpoints + rate limiter check | High | 2h |
-| B28 | README â€” setup steps, env vars, architecture, Docker instructions | Critical | 2h |
+| B3 | Auth: register, login, JWT, refresh, me, logout | Critical | 6h |
+| B4 | Tenant middleware -- extract tenantId, attach req.tenant | Critical | 1h |
+| B5 | Ticket CRUD -- list paginated+filtered, create, get, update, notes | Critical | 5h |
+| B6 | Chat messages -- send (persist+broadcast), paginated history | Critical | 4h |
+| B7 | Socket.IO server + Redis adapter + socket auth middleware | Critical | 5h |
+| B8 | Socket handlers -- chatHandler, notificationHandler | Critical | 4h |
+| B9 | AI service -- intent classification | Critical | 4h |
+| B10 | AI service -- FAQ-grounded auto-reply + escalation | Critical | 4h |
+| B11 | AI service -- agent suggestion endpoint | High | 3h |
+| B12 | AI service -- conversation summarization | High | 2h |
+| B13 | Smart routing service -- category + sentiment + availability | High | 4h |
+| B14 | Admin endpoints -- users, FAQ CRUD, all settings | High | 5h |
+| B15 | Analytics endpoints -- aggregation pipelines | High | 4h |
+| B16 | Widget endpoints -- public config + session | High | 2h |
+| B17 | Security middleware chain -- Helmet, sanitize, xss, hpp | Critical | 3h |
+| B18 | Redis-backed rate limiter -- global + auth-specific | Critical | 2h |
+| B19 | Redis client + cache service helpers + token blacklist | Critical | 2h |
+| B20 | Global error handler -- consistent JSON, async wrapper | Critical | 1h |
+| B21 | Input validation -- Joi/Zod schemas for all endpoints | High | 3h |
+| B22 | Dockerfile -- multi-stage build | Critical | 2h |
+| B23 | Docker Compose -- 3 instances + Redis + Mongo + Nginx | Critical | 3h |
+| B24 | Nginx config -- round-robin REST + ip_hash WebSocket | Critical | 2h |
+| B25 | Deploy to Render/Railway + env vars + verify live URL | Critical | 3h |
+| B26 | MongoDB compound indexes on all collections | High | 1h |
+| B27 | Load test with autocannon -- endpoints + rate limiter check | High | 2h |
+| B28 | README -- setup steps, env vars, Docker instructions | Critical | 2h |
 
-**Suggested split:** Akshat owns B3, B5-B13 (auth, tickets, chat, WebSocket, AI). Mayank owns B1-B2, B17-B25 (infra, security, Docker, Nginx, deployment).
+**Suggested split:** Akshat owns B3, B5-B13 (auth, tickets, chat, WebSocket, AI). Mayank owns B1-B2, B17-B25 (infra, security, Docker, Nginx, deploy).
 
----
-
-## Backend Notes
-
-- Start with B1, B2, B17, B19, B20 before anything else. Nothing works without the foundation.
-- **Tenant isolation is the single biggest security risk.** Before submission, grep every Mongoose `find`, `findOne`, `findById`, `updateOne`, `deleteOne` in controllers and confirm each one includes `tenantId: req.tenant` in the filter. If even one leaks, the judges will find it.
-- Test the Redis adapter on Day 1, not Day 2. Set up Docker with 2 instances immediately after B7 and verify cross-instance messaging works before building AI on top.
-- Use `express-async-errors` or wrap all controller functions in a try/catch to avoid unhandled promise rejections crashing the server.
+**Critical notes:**
+- Start with B1, B2, B17, B19, B20 before anything else
+- Audit every Mongoose query before submission -- confirm `tenantId: req.tenant` is in every single filter
+- Test Redis adapter on Day 1 -- set up Docker with 2 instances immediately after B7
+- Use `express-async-errors` to avoid unhandled promise rejections crashing the server
 ---
 
 # Frontend Team
-**Nikhil & Noor â€” React, Redux Toolkit, Socket.IO Client, Neo-Brutalism CSS**
+**Nikhil and Noor -- React, Redux Toolkit, Socket.IO Client, Neo-Brutalism CSS**
 
 ---
 
@@ -990,13 +748,13 @@ Also define `limit_req_zone` and `limit_conn_zone` directives in Nginx for conne
 ```
 frontend/
 â”œâ”€â”€ public/
-â”‚   â””â”€â”€ widget-loader.js        Embeddable script â€” creates container, loads widget
+â”‚   â””â”€â”€ widget-loader.js        Embeddable script
 â”œâ”€â”€ src/
 â”‚   â”œâ”€â”€ app/
 â”‚   â”‚   â”œâ”€â”€ store.js            Redux configureStore with all slices
 â”‚   â”‚   â”œâ”€â”€ App.jsx             Router + layout wrapper
 â”‚   â”‚   â””â”€â”€ index.css           Global resets + font imports
-â”‚   â”œâ”€â”€ design/                 Neo-Brutalism Design System
+â”‚   â”œâ”€â”€ design/
 â”‚   â”‚   â”œâ”€â”€ tokens.css          All CSS custom properties
 â”‚   â”‚   â”œâ”€â”€ Button.jsx + .css
 â”‚   â”‚   â”œâ”€â”€ Card.jsx + .css
@@ -1047,11 +805,11 @@ frontend/
 â”‚   â”‚       â”œâ”€â”€ FeatureCards.jsx
 â”‚   â”‚       â””â”€â”€ HowItWorks.jsx
 â”‚   â”œâ”€â”€ hooks/
-â”‚   â”‚   â”œâ”€â”€ useSocket.js        Socket.IO lifecycle â€” connect, events, cleanup
-â”‚   â”‚   â”œâ”€â”€ useAuth.js          Auth state helpers
-â”‚   â”‚   â””â”€â”€ useDebounce.js      For search inputs and typing indicators
+â”‚   â”‚   â”œâ”€â”€ useSocket.js
+â”‚   â”‚   â”œâ”€â”€ useAuth.js
+â”‚   â”‚   â””â”€â”€ useDebounce.js
 â”‚   â”œâ”€â”€ utils/
-â”‚   â”‚   â”œâ”€â”€ api.js              Axios instance â€” JWT interceptor + auto-refresh on 401
+â”‚   â”‚   â”œâ”€â”€ api.js              Axios instance + JWT interceptor + auto-refresh on 401
 â”‚   â”‚   â””â”€â”€ constants.js        Role enums, status enums, priority colors
 â”‚   â””â”€â”€ main.jsx
 â”œâ”€â”€ vite.config.js
@@ -1064,60 +822,58 @@ frontend/
 
 | Slice | State Shape |
 |-------|-------------|
-| `authSlice` | `{ user, token, status: 'idle/loading/succeeded/failed', error }` |
+| `authSlice` | `{ user, token, status, error }` |
 | `chatSlice` | `{ activeTicketId, messages: { [ticketId]: [] }, typing: { [ticketId]: [...] }, connected }` |
-| `ticketSlice` | `{ tickets: [], filters: { status, priority, assignedTo }, pagination, selectedTicket }` |
+| `ticketSlice` | `{ tickets: [], filters, pagination, selectedTicket }` |
 | `adminSlice` | `{ users: [], faqs: [], aiSettings, widgetConfig, routingRules }` |
 | `analyticsSlice` | `{ overview, trends: [], agentStats: [], status }` |
 | `uiSlice` | `{ sidebarOpen, activeModal, notifications: [] }` |
 
-All async calls use `createAsyncThunk`. The Axios instance in `utils/api.js` attaches the token from store on every request and auto-calls the refresh endpoint on 401 before retrying.
+All async calls use `createAsyncThunk`. The Axios instance attaches the token from store on every request and auto-calls the refresh endpoint on 401.
 
 ---
 
 ## Neo-Brutalism Design System
 
-### Design Principles
+### Principles
 
-This is not a clean modern SaaS look. It's structural, bold, and intentional. Judges remember it.
-
-- **Zero border-radius** â€” square corners everywhere
-- **No soft drop shadows** â€” only hard offset shadows at 0px blur
-- **Thick visible borders** â€” 2px to 4px solid black
-- **Pastel backgrounds** â€” lavender, yellow, green, pink, blue on a warm off-white base
-- **Oversized bold typography** â€” uppercase headers, heavy font weight
-- **Press animations on buttons** â€” simulate physical tactility
+- Zero border-radius -- square corners everywhere
+- Hard offset shadows at 0px blur only -- no soft drop shadows
+- Thick visible borders -- 2px to 4px solid black
+- Pastel backgrounds on a warm off-white base
+- Uppercase bold headers
+- Button press animations to simulate tactility
 
 ### Token Reference
 
 | Token | Value | Used For |
 |-------|-------|----------|
-| `--nb-bg` | `#FFFDF7` | Warm off-white â€” main background |
-| `--nb-bg-sidebar` | `#F5F0E8` | Sidebar background |
+| `--nb-bg` | `#FFFDF7` | Main background |
+| `--nb-bg-sidebar` | `#F5F0E8` | Sidebar |
 | `--nb-lavender` | `#E6E6FA` | Cards, containers |
-| `--nb-yellow` | `#FFF59D` | Primary buttons, highlights |
-| `--nb-green` | `#00E676` | AI elements, success states |
+| `--nb-yellow` | `#FFF59D` | Primary buttons |
+| `--nb-green` | `#00E676` | AI elements, success |
 | `--nb-pink` | `#F8BBD0` | Badges, accents |
 | `--nb-blue` | `#BBDEFB` | Info, input focus |
 | `--nb-peach` | `#FFCCBC` | Warnings, high priority |
-| `--nb-red` | `#FF5252` | Errors, urgent priority |
-| `--nb-border-thin` | `2px solid #000` | Message bubbles, subtle separators |
+| `--nb-red` | `#FF5252` | Errors, urgent |
+| `--nb-border-thin` | `2px solid #000` | Message bubbles |
 | `--nb-border` | `3px solid #000` | Inputs, cards |
-| `--nb-border-thick` | `4px solid #000` | Headers, primary containers |
-| `--nb-shadow-sm` | `2px 2px 0px #000` | Pressed/hover state |
-| `--nb-shadow-md` | `4px 4px 0px #000` | Buttons default |
+| `--nb-border-thick` | `4px solid #000` | Headers |
+| `--nb-shadow-sm` | `2px 2px 0px #000` | Hover/pressed |
+| `--nb-shadow-md` | `4px 4px 0px #000` | Buttons |
 | `--nb-shadow-lg` | `6px 6px 0px #000` | Cards, modals |
-| `--nb-font-display` | Space Grotesk | All headings (import from Google Fonts) |
+| `--nb-font-display` | Space Grotesk | All headings |
 | `--nb-font-body` | Inter | Body text |
-| `--nb-font-mono` | JetBrains Mono | Code, IDs, ticket numbers |
+| `--nb-font-mono` | JetBrains Mono | Code, IDs |
 
 ### Component Rules
 
-**Button:** 3px black border, `--nb-shadow-md`. On hover: `translate(2px, 2px)` + `--nb-shadow-sm`. On active: `translate(4px, 4px)` + no shadow (fully pressed illusion). Background: yellow for primary, white for secondary, red for danger.
+**Button:** 3px black border, `--nb-shadow-md`. On hover: `translate(2px, 2px)` + `--nb-shadow-sm`. On active: `translate(4px, 4px)` + no shadow.
 
-**Card:** 2px black border, `--nb-shadow-lg`, lavender background, 0px border-radius. No exceptions.
+**Card:** 2px black border, `--nb-shadow-lg`, lavender background, 0px border-radius.
 
-**Input:** 3px black border, `--nb-shadow-sm`. On focus: blue background, `--nb-shadow-md`. No outline.
+**Input:** 3px black border, `--nb-shadow-sm`. On focus: blue background, `--nb-shadow-md`.
 
 **Priority Badges:**
 
@@ -1136,86 +892,83 @@ This is not a clean modern SaaS look. It's structural, bold, and intentional. Ju
 | Agent | White | 2px solid black |
 | AI | `--nb-green` tinted | 2px dashed black + sparkle icon |
 
-**Layout separators:** Sidebar divided from main content by `3px solid black` vertical line. Panel separators the same.
-
-**Typography rule:** Section headers are `font-size: 2rem`, `font-weight: 800`, `text-transform: uppercase`. No soft typography anywhere in the dashboard.
+**Layout:** Sidebar divided by `3px solid black` vertical line. Section headers: `font-size: 2rem`, `font-weight: 800`, `text-transform: uppercase`. No rounded corners anywhere.
 
 ---
 
 ## Frontend Task List
 
-| # | Task | Priority | Est. Hours |
-|---|------|----------|------------|
+| # | Task | Priority | Hours |
+|---|------|----------|-------|
 | F1 | Vite + React init, install all dependencies | Critical | 1h |
-| F2 | Design tokens â€” `tokens.css` with all CSS custom properties | Critical | 2h |
+| F2 | Design tokens -- `tokens.css` with all CSS custom properties | Critical | 2h |
 | F3 | Button component with press animation, all variants | Critical | 2h |
-| F4 | Card component â€” thick border, offset shadow, variants | Critical | 1h |
-| F5 | Input component â€” thick border, pastel focus, textarea variant | Critical | 1h |
+| F4 | Card component -- thick border, offset shadow | Critical | 1h |
+| F5 | Input component -- thick border, pastel focus, textarea variant | Critical | 1h |
 | F6 | Badge, Modal, Toast, Skeleton, Dropdown components | Critical | 3h |
 | F7 | Redux store with all 6 slice scaffolds | Critical | 3h |
-| F8 | Axios API service â€” base URL, JWT interceptor, auto-refresh on 401 | Critical | 2h |
-| F9 | Auth slice â€” login/register/getMe/logout thunks, loading+error state | Critical | 2h |
-| F10 | Login page â€” form, validation, error display, link to register | Critical | 3h |
-| F11 | Register page â€” business name, name, email, password fields, auto-redirect | Critical | 3h |
-| F12 | ProtectedRoute â€” check auth, redirect to /login, skeleton while checking | Critical | 1h |
-| F13 | App layout â€” sidebar + topbar + content area, responsive hamburger | Critical | 4h |
-| F14 | Sidebar â€” role-based nav links, active state, stark vertical divider | Critical | 2h |
-| F15 | useSocket hook â€” connect with JWT, event listeners, auto-reconnect, cleanup | Critical | 3h |
-| F16 | Ticket slice â€” state shape, fetchTickets/updateTicket/assignTicket thunks | Critical | 3h |
-| F17 | Ticket Inbox (left panel) â€” filter buttons, ticket cards, real-time updates | Critical | 5h |
-| F18 | Ticket Detail (right panel) â€” status/priority dropdowns, agent selector, notes | Critical | 4h |
-| F19 | Chat slice â€” messages map, typing indicators, fetchMessages thunk | Critical | 2h |
-| F20 | Chat Window (center panel) â€” message list, auto-scroll, bubble components | Critical | 5h |
-| F21 | Message Input â€” text field, send button, emits chat:send and chat:typing | Critical | 2h |
-| F22 | AI Suggestion Panel â€” "AI Suggest" button, draft display, Accept/Edit/Dismiss | Critical | 3h |
-| F23 | Message Bubble â€” styled per senderType, name + timestamp | Critical | 2h |
-| F24 | Socket event wiring â€” chat:message / ticket:new / ticket:updated / notification:new â†’ Redux | Critical | 3h |
-| F25 | Admin layout â€” tabbed interface, visible to admin role only | High | 2h |
-| F26 | User Management page â€” agent table, invite modal, role/status controls | High | 4h |
-| F27 | FAQ Manager â€” searchable list, add/edit/delete forms | High | 4h |
-| F28 | AI Settings page â€” auto-reply toggle, threshold slider, tone + model selector | High | 2h |
-| F29 | Widget Settings page â€” color picker, greeting input, embed code copy | High | 2h |
-| F30 | Analytics slice â€” overview/trends/agentStats thunks | High | 2h |
-| F31 | Analytics Dashboard â€” 4 stat cards + trend indicators, agent table | High | 5h |
-| F32 | Charts â€” Recharts LineChart + BarChart, thick strokes, flat fills, brutalist tooltips | High | 3h |
-| F33 | Chat Widget â€” standalone React app, scoped CSS, Socket.IO via API key, localStorage session | Critical | 6h |
-| F34 | Widget loader script â€” vanilla JS, creates iframe/shadow DOM, loads widget | Critical | 2h |
-| F35 | Landing page â€” hero, How It Works, feature cards, comparison, CTA | High | 5h |
-| F36 | Notification toasts â€” real-time, auto-dismiss after 5s | High | 2h |
-| F37 | Profile/Settings page â€” edit name/email, change password, logout | Low | 2h |
-| F38 | Responsive design pass â€” all pages at 320px, 768px, 1024px, 1440px | Critical | 4h |
-| F39 | Loading and error states â€” skeletons, error boundaries, empty states | High | 3h |
-| F40 | Dark mode â€” CSS property swap, toggle in sidebar, persist in localStorage | Low | 2h |
-| F41 | Micro-animations â€” card hover, button press, typing dots, toast slide-in | High | 2h |
+| F8 | Axios API service -- base URL, JWT interceptor, auto-refresh on 401 | Critical | 2h |
+| F9 | Auth slice -- login/register/getMe/logout thunks | Critical | 2h |
+| F10 | Login page -- form, validation, error display | Critical | 3h |
+| F11 | Register page -- all fields, creates tenant, auto-redirect | Critical | 3h |
+| F12 | ProtectedRoute -- check auth, redirect to /login | Critical | 1h |
+| F13 | App layout -- sidebar + topbar + content area, hamburger mobile | Critical | 4h |
+| F14 | Sidebar -- role-based nav links, active state, divider | Critical | 2h |
+| F15 | useSocket hook -- connect with JWT, event listeners, cleanup | Critical | 3h |
+| F16 | Ticket slice -- state, fetchTickets/updateTicket/assignTicket | Critical | 3h |
+| F17 | Ticket Inbox (left panel) -- filter buttons, ticket cards, real-time | Critical | 5h |
+| F18 | Ticket Detail (right panel) -- dropdowns, agent selector, notes | Critical | 4h |
+| F19 | Chat slice -- messages map, typing, fetchMessages thunk | Critical | 2h |
+| F20 | Chat Window (center panel) -- message list, auto-scroll, bubbles | Critical | 5h |
+| F21 | Message Input -- text field, send button, emits chat:send + chat:typing | Critical | 2h |
+| F22 | AI Suggestion Panel -- "AI Suggest" button, draft, Accept/Edit/Dismiss | Critical | 3h |
+| F23 | Message Bubble -- styled per senderType, name + timestamp | Critical | 2h |
+| F24 | Socket event wiring -- chat:message / ticket:new / ticket:updated -> Redux | Critical | 3h |
+| F25 | Admin layout -- tabbed interface, admin role only | High | 2h |
+| F26 | User Management page -- agent table, invite modal, role/status controls | High | 4h |
+| F27 | FAQ Manager -- searchable list, add/edit/delete forms | High | 4h |
+| F28 | AI Settings page -- toggle, threshold slider, tone + model selector | High | 2h |
+| F29 | Widget Settings page -- color picker, greeting input, embed code copy | High | 2h |
+| F30 | Analytics slice -- overview/trends/agentStats thunks | High | 2h |
+| F31 | Analytics Dashboard -- 4 stat cards + trend indicators + agent table | High | 5h |
+| F32 | Charts -- Recharts LineChart + BarChart, thick strokes, flat fills | High | 3h |
+| F33 | Chat Widget -- standalone React app, scoped CSS, Socket.IO via API key | Critical | 6h |
+| F34 | Widget loader script -- vanilla JS, creates iframe/shadow DOM | Critical | 2h |
+| F35 | Landing page -- hero, How It Works, feature cards, comparison | High | 5h |
+| F36 | Notification toasts -- real-time, auto-dismiss 5s | High | 2h |
+| F37 | Profile/Settings page -- edit name/email, change password, logout | Low | 2h |
+| F38 | Responsive design -- all pages at 320px, 768px, 1024px, 1440px | Critical | 4h |
+| F39 | Loading and error states -- skeletons, error boundaries, empty states | High | 3h |
+| F40 | Dark mode -- CSS property swap, toggle, persist in localStorage | Low | 2h |
+| F41 | Micro-animations -- card hover, button press, typing dots, toast slide-in | High | 2h |
 
 **Suggested split:** Nikhil owns F7-F24 (Redux store, auth, three-panel dashboard, real-time). Noor owns F2-F6 (design system), F25-F35 (admin, analytics, widget, landing).
 
----
-
-## Frontend Notes
-
-- **Start with F1-F8.** Design system + store + API layer = your foundation. Every page depends on these. Do not skip ahead.
-- **Don't wait for the backend.** Mock API responses in `utils/api.js` from the start. Use the agreed request/response shapes from the API spec. Swap to real endpoints when backend delivers them.
-- **Neo-Brutalism is non-negotiable.** The judges weight UI/UX heavily. Every component must follow the tokens. No rounded corners. No soft shadows. If it looks like a default Bootstrap component, it's wrong.
-- **The three-panel dashboard is the product.** Spend more time here than anywhere else. The Inbox, Chat Window, and AI Suggestion Panel together are the "wow" moment for judges.
-- Mock a realistic demo state â€” seed your Redux store with a few pre-created tickets and messages so the demo doesn't start on an empty screen.
+**Critical notes:**
+- Start with F1-F8. Design system + Redux store + API layer = foundation
+- Do not wait for backend -- mock API responses from Day 1, swap to real endpoints when ready
+- Neo-Brutalism is non-negotiable. Judges weight UI/UX heavily. No rounded corners, no soft shadows
+- The three-panel dashboard is the "wow" moment -- spend the most time here
+- Seed Redux store with demo tickets/messages so the demo does not start on an empty screen
 
 ---
 
-# Shared Reference
+# Sprint Plan
 
-## Sprint Plan (48-Hour Build)
+## 48-Hour Overview
 
 | Phase | Hours | Goal |
 |-------|-------|------|
-| 1 â€” Foundation | 0â€“4h | Both teams unblocked. Backend: Express + DB + Redis. Frontend: design system + Redux + API layer |
-| 2 â€” Core Build | 4â€“20h | Auth E2E. Tickets + Chat E2E. Real-time messaging works |
-| 3 â€” AI Layer | 20â€“32h | Classification, auto-reply, suggestions, routing all working |
-| 4 â€” Polish | 32â€“40h | Analytics, admin panel, widget, loading/error states, responsive |
-| 5 â€” Security & Scaling | 40â€“44h | Docker + Nginx running. Security verified. Deployed live |
-| 6 â€” Demo Prep | 44â€“48h | E2E tested. Pitch rehearsed. Submission ready |
+| 1 -- Foundation | 0-4h | Both teams unblocked. Backend: Express + DB + Redis. Frontend: design tokens + Redux + API layer |
+| 2 -- Core Build | 4-20h | Auth E2E. Tickets + Chat E2E. Real-time messaging works |
+| 3 -- AI Layer | 20-32h | Classification, auto-reply, suggestions, routing all working |
+| 4 -- Polish | 32-40h | Analytics, admin panel, widget, loading/error states, responsive |
+| 5 -- Security and Scaling | 40-44h | Docker + Nginx running. Security verified. Deployed live |
+| 6 -- Demo Prep | 44-48h | E2E tested. Pitch rehearsed. Submission ready |
 
-### Phase 1 â€” Foundation (Hours 0-4)
+---
+
+### Phase 1 -- Foundation (Hours 0-4)
 
 | Task | Team |
 |------|------|
@@ -1229,11 +982,11 @@ This is not a clean modern SaaS look. It's structural, bold, and intentional. Ju
 | Redux store + all slice scaffolds | Frontend |
 | Axios instance + JWT interceptor | Frontend |
 
-### Phase 2 â€” Core Build (Hours 4-20)
+### Phase 2 -- Core Build (Hours 4-20)
 
 | Task | Team |
 |------|------|
-| Auth system â€” register, login, JWT, refresh, me, logout | Backend |
+| Auth system -- register, login, JWT, refresh, me, logout | Backend |
 | Tenant middleware | Backend |
 | Ticket CRUD + routes | Backend |
 | Chat message controller + routes | Backend |
@@ -1249,7 +1002,7 @@ This is not a clean modern SaaS look. It's structural, bold, and intentional. Ju
 | Chat Window + Message Input + Message Bubble | Frontend |
 | Socket event wiring to Redux | Frontend |
 
-### Phase 3 â€” AI Layer (Hours 20-32)
+### Phase 3 -- AI Layer (Hours 20-32)
 
 | Task | Team |
 |------|------|
@@ -1263,7 +1016,7 @@ This is not a clean modern SaaS look. It's structural, bold, and intentional. Ju
 | Admin layout + all 5 tabs | Frontend |
 | Embeddable Chat Widget + loader script | Frontend |
 
-### Phase 4 â€” Polish (Hours 32-40)
+### Phase 4 -- Polish (Hours 32-40)
 
 | Task | Team |
 |------|------|
@@ -1279,24 +1032,24 @@ This is not a clean modern SaaS look. It's structural, bold, and intentional. Ju
 | Loading + error states | Frontend |
 | Dark mode + micro-animations | Frontend |
 
-### Phase 5 â€” Security & Scaling (Hours 40-44)
+### Phase 5 -- Security and Scaling (Hours 40-44)
 
 | Task | Team |
 |------|------|
 | Dockerfile multi-stage build | Backend |
-| Docker Compose â€” 3 instances | Backend |
-| Nginx config â€” load balancing + WebSocket | Backend |
+| Docker Compose -- 3 instances | Backend |
+| Nginx config -- load balancing + WebSocket | Backend |
 | Deploy backend to Render/Railway | Backend |
 | Load test with autocannon | Backend |
 | Deploy frontend to Vercel | Frontend |
 | Cross-browser testing | Frontend |
 | Final UI audit | Frontend |
 
-### Phase 6 â€” Demo Prep (Hours 44-48)
+### Phase 6 -- Demo Prep (Hours 44-48)
 
 | Task | Team |
 |------|------|
-| E2E flow test â€” full widget to resolution journey | Both |
+| E2E flow test -- full widget to resolution journey | Both |
 | README documentation | Backend |
 | Demo rehearsal | Both |
 | Record pitch video | Both |
@@ -1306,32 +1059,32 @@ This is not a clean modern SaaS look. It's structural, bold, and intentional. Ju
 
 ---
 
-## Deployment
+# Deployment
 
 | Service | Platform | Config |
 |---------|----------|--------|
 | Frontend | Vercel | Build: `npm run build`, Output: `dist`, Env: `VITE_API_URL` |
-| Backend | Render / Railway | Start: `node src/server.js`, Env vars: see `.env.example` |
-| Database | MongoDB Atlas M0 | Mumbai region, connection string with `retryWrites=true&w=majority` |
+| Backend | Render / Railway | Start: `node src/server.js`, set all env vars |
+| Database | MongoDB Atlas M0 | Mumbai region, `retryWrites=true&w=majority` |
 | Redis | Redis Cloud free tier | AOF persistence enabled |
-| Scaling demo | Docker Compose locally | `docker-compose up --build` â€” 3 instances + Redis + Mongo + Nginx |
+| Scaling demo | Docker Compose locally | `docker-compose up --build` |
 
-Required environment variables for backend: `MONGODB_URI`, `REDIS_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `OPENAI_API_KEY`, `FRONTEND_URL`, `WIDGET_URL`, `NODE_ENV`, `PORT`
+Required env vars: `MONGODB_URI`, `REDIS_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `OPENAI_API_KEY`, `FRONTEND_URL`, `WIDGET_URL`, `NODE_ENV`, `PORT`
 
 ---
 
-## Testing
+# Testing
 
 ### Backend
 
-| Test Type | Method |
-|-----------|--------|
-| API testing | Thunder Client or Postman â€” all endpoints |
-| NoSQL injection | POST `/login` with `{ email: { "$gt": "" }, password: { "$gt": "" } }` â€” must fail |
-| XSS | Send `<script>alert('xss')</script>` as a message â€” must be sanitized |
-| Brute force | Hit `/login` 10 times rapidly â€” must get 429 after 5th |
-| Security headers | `curl -I https://your-api-url` â€” verify Helmet headers present |
-| Scaling | Open 2 browsers, send messages cross-instance, kill one instance and verify app continues |
+| Test | Method |
+|------|--------|
+| API testing | Thunder Client or Postman -- all endpoints |
+| NoSQL injection | POST `/login` with `{ email: { "$gt": "" } }` -- must fail |
+| XSS | Send `<script>alert('xss')</script>` as message -- must be sanitized |
+| Brute force | Hit `/login` 10 times rapidly -- must get 429 after 5th |
+| Security headers | `curl -I https://your-api-url` -- verify Helmet headers |
+| Scaling | 2 browsers, same ticket, message cross-instance, kill one instance |
 | Load | `npx autocannon -c 100 -d 30 http://localhost/api/tickets` |
 
 ### Frontend
@@ -1346,70 +1099,70 @@ Required environment variables for backend: `MONGODB_URI`, `REDIS_URL`, `JWT_SEC
 | Step | Expected Result |
 |------|----------------|
 | Open widget on test site | Greeting message appears |
-| Customer asks simple question | AI auto-replies from FAQ within 2 seconds |
+| Customer asks simple question | AI auto-replies within 2 seconds from FAQ |
 | Customer asks complex question | Ticket created automatically |
 | Switch to Agent Dashboard | New ticket notification appears in real-time |
 | Agent opens ticket | Chat history visible + AI summary shown |
-| Agent clicks "AI Suggest" | Draft reply populated in input |
+| Agent clicks "AI Suggest" | Draft reply populated |
 | Agent edits and sends | Customer sees reply in widget instantly |
 | Agent marks ticket resolved | Analytics dashboard reflects the resolution |
 | Admin opens FAQ Manager | Adds new FAQ entry |
-| Customer asks same question | AI uses new FAQ for next conversation |
+| Customer asks same question | AI uses new FAQ in next conversation |
 
 ---
 
-## Demo & Pitch
+# Demo and Pitch
 
 ### Pitch Structure
 
 | Segment | Duration | Script |
 |---------|----------|--------|
 | Problem | 30 sec | "40% of support tickets are repetitive FAQs. Agents waste hours. Businesses overspend on support that AI should handle." |
-| Solution | 45 sec | "Velox is an AI-first, multi-tenant support platform. Embed our widget. AI resolves common queries instantly from your knowledge base. Complex issues escalate â€” AI creates the ticket, routes it to the right agent, and drafts the reply." |
-| Demo | 60 sec | Live: widget â†’ AI reply â†’ escalation â†’ agent dashboard â†’ AI suggestion â†’ resolution â†’ analytics |
+| Solution | 45 sec | "Velox is an AI-first support platform. Embed our widget. AI resolves common queries instantly from your knowledge base. Complex issues escalate -- AI creates the ticket, routes it to the right agent, and drafts the reply." |
+| Demo | 60 sec | Live: widget -> AI reply -> escalation -> agent dashboard -> AI suggestion -> resolution -> analytics |
 | Tech depth | 30 sec | "Multi-tenant data isolation. 3 horizontally-scaled Node instances behind Nginx. Redis Pub/Sub for WebSocket sync. Full Helmet + rate limiting + NoSQL injection prevention. All in Docker." |
 | Impact | 15 sec | "Sub-2s AI responses. 40%+ query automation. Agents focus only on what needs a human." |
 
-**Pitch line:** *"An AI-first support platform that kills repetitive queries while keeping humans in the loop for what actually matters."*
+**One-liner:** *An AI-first support platform that kills repetitive queries while keeping humans in the loop for what actually matters.*
 
 ---
 
-## Submission Checklist
+# Submission Checklist
 
 ### Required
 
 - [ ] GitHub repository with clean commits
-- [ ] Live deployment link (frontend + backend both accessible)
+- [ ] Live deployment link (frontend + backend accessible)
 - [ ] Pitch video on Google Drive (public access)
 - [ ] X (Twitter) post with pitch + link
 - [ ] LinkedIn post with pitch + link
 - [ ] Instagram post / story / reel
-- [ ] BTS content â€” monologue or voiceover showing build process and thinking
+- [ ] BTS content -- monologue or voiceover showing build process
 
 ### README Must Include
 
 - [ ] Setup steps (clone, install, env vars, run)
 - [ ] Features explanation
-- [ ] Tech decisions (why each tool was chosen)
+- [ ] Tech decisions
 - [ ] Architecture diagram
 - [ ] How to run Docker Compose for scaling demo
 
 ### Pre-Launch
 
-- [ ] Auth E2E: register â†’ login â†’ protected route â†’ token refresh â†’ logout
-- [ ] Real-time chat: widget â†’ agent dashboard, messages sync in under 1 second
-- [ ] AI auto-reply: sends FAQ-grounded response, not hallucinated
-- [ ] AI suggestion: appears as a draft, not auto-sent
-- [ ] Smart routing: ticket assigned to correct agent based on category
+- [ ] Auth E2E: register -> login -> protected route -> token refresh -> logout
+- [ ] Real-time chat: widget -> agent dashboard, sync under 1 second
+- [ ] AI auto-reply: FAQ-grounded, not hallucinated
+- [ ] AI suggestion: draft only, not auto-sent
+- [ ] Smart routing: ticket assigned based on category
 - [ ] Admin panel: all 5 tabs functional
-- [ ] Analytics: charts render with real data from resolved tickets
-- [ ] Security headers: verified via `curl -I` or securityheaders.com
-- [ ] Rate limiting: `/login` returns 429 on 6th attempt within a minute
-- [ ] Horizontal scaling: 3 Docker instances, cross-instance WebSocket delivery confirmed
+- [ ] Analytics: charts render with real data
+- [ ] Security headers: verified via `curl -I`
+- [ ] Rate limiting: `/login` returns 429 on 6th attempt
+- [ ] Horizontal scaling: 3 Docker instances, cross-instance WebSocket confirmed
 - [ ] Responsive: tested at all 4 breakpoints
-- [ ] Widget: embeds and functions on an external HTML page
+- [ ] Widget: embeds and functions on external HTML page
 - [ ] No console errors in production build
 
 ---
 
-> This document is the single source of truth. If something is unclear, update the document â€” not a side channel. Every feature, page, task, endpoint, and event is here. No surprises.
+> This document is the single source of truth. Every feature, page, task, endpoint, and event is documented here. No side channels.
