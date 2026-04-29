@@ -1,5 +1,6 @@
 import "dotenv/config";
 
+// Crash early if any of these are missing from .env
 const required = ["MONGODB_URI", "JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET", "NODE_ENV"];
 const missing = required.filter((k) => !process.env[k]);
 
