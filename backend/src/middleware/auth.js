@@ -16,8 +16,11 @@ export async function requireAuth(req, res, next) {
   const decoded = verifyAccessToken(token);
 
   // Check if this token was manually invalidated (e.g. after logout)
-  if (redis && await redis.get(`bl:${decoded.jti}`))
-    return res.status(401).json({ success: false, message: "Token revoked" });
+  if (redis) {
+    const isBlacklisted = await redis.get(`bl:${decoded.jti}`);
+    if (isBlacklisted)
+      return res.status(401).json({ success: false, message: "Token revoked" });
+  }
 
   req.user = {
     userId:   decoded.userId,

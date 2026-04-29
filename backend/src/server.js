@@ -1,4 +1,3 @@
-import "express-async-errors"; // patches Express so async errors reach errorHandler automatically
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
