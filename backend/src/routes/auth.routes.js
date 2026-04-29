@@ -1,19 +1,12 @@
-const express = require("express");
-const { register, login, logout, me } = require("../controllers/auth.controller");
-const { requireAuth } = require("../middleware/auth");
+import { Router } from "express";
+import { register, login, logout, me } from "../controllers/auth.controller.js";
+import { requireAuth } from "../middleware/auth.js";
 
-const router = express.Router();
+const router = Router();
 
-// POST /api/auth/register -- public
 router.post("/register", register);
+router.post("/login",    login);
+router.post("/logout",   requireAuth, logout);
+router.get("/me",        requireAuth, me);
 
-// POST /api/auth/login -- public
-router.post("/login", login);
-
-// POST /api/auth/logout -- requires valid access token
-router.post("/logout", requireAuth, logout);
-
-// GET /api/auth/me -- requires valid access token
-router.get("/me", requireAuth, me);
-
-module.exports = router;
+export default router;

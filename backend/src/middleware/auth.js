@@ -1,37 +1,15 @@
-const { verifyAccessToken } = require("../utils/generateToken");
-const redis = require("../config/redis");
+import { verifyAccessToken } from "../utils/generateToken.js";
+import redis from "../config/redis.js";
 
-/**
- * requireAuth middleware
- * Expects: Authorization: Bearer <accessToken>
- * Attaches req.user = { userId, tenantId, role }
- */
-const requireAuth = async (req, res, next) => {
-  const authHeader = req.headers.authorization;
+export async function requireAuth(req, res, next) {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ success: false, message: "No token provided" });
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ success: false, message: "No token provided" });
-  }
+  const decoded = verifyAccessToken(token); // throws → caught by errorHandler
 
-  const token = authHeader.split(" ")[1];
+  if (redis && await redis.get(`bl:${decoded.jti}`))
+    return res.status(401).json({ success: false, message: "Token revoked" });
 
-  const decoded = verifyAccessToken(token); // throws on invalid/expired -- caught by errorHandler
-
-  // Check Redis blacklist (if Redis is running)
-  if (redis) {
-    const isBlacklisted = await redis.get(`bl:${decoded.jti}`);
-    if (isBlacklisted) {
-      return res.status(401).json({ success: false, message: "Token has been revoked" });
-    }
-  }
-
-  req.user = {
-    userId: decoded.userId,
-    tenantId: decoded.tenantId,
-    role: decoded.role,
-  };
-
+  req.user = { userId: decoded.userId, tenantId: decoded.tenantId, role: decoded.role };
   next();
-};
-
-module.exports = { requireAuth };
+}

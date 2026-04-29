@@ -1,39 +1,26 @@
-require("express-async-errors");
-const express = require("express");
-const cookieParser = require("cookie-parser");
-const cors = require("cors");
-const helmet = require("helmet");
+import "express-async-errors";
+import express from "express";
+import cookieParser from "cookie-parser";
+import cors from "cors";
+import helmet from "helmet";
 
-const { PORT, CLIENT_URL } = require("./config/env");
-const connectDB = require("./config/db");
-require("./config/redis"); // initialise Redis connection (optional)
-
-const authRoutes = require("./routes/auth.routes");
-const errorHandler = require("./middleware/errorHandler");
+import connectDB from "./config/db.js";
+import "./config/redis.js";
+import authRoutes from "./routes/auth.routes.js";
+import errorHandler from "./middleware/errorHandler.js";
+import { PORT, CLIENT_URL } from "./config/env.js";
 
 const app = express();
 
-// ─── Security & Parsing ───────────────────────────────────────────────────────
 app.use(helmet());
-app.use(
-  cors({
-    origin: CLIENT_URL,
-    credentials: true, // allow cookies (refresh token)
-  })
-);
+app.use(cors({ origin: CLIENT_URL, credentials: true }));
 app.use(express.json({ limit: "10kb" }));
 app.use(cookieParser());
 
-// ─── Routes ───────────────────────────────────────────────────────────────────
 app.use("/api/auth", authRoutes);
+app.get("/health", (_, res) => res.json({ status: "ok" }));
 
-// ─── Health check ─────────────────────────────────────────────────────────────
-app.get("/health", (req, res) => res.json({ status: "ok" }));
-
-// ─── Global error handler (must be last) ─────────────────────────────────────
 app.use(errorHandler);
 
-// ─── Boot ─────────────────────────────────────────────────────────────────────
-connectDB().then(() => {
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-});
+await connectDB();
+app.listen(PORT, () => console.log(`Server on port ${PORT}`));

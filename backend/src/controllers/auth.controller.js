@@ -1,165 +1,103 @@
-const Tenant = require("../models/Tenant");
-const User = require("../models/User");
-const redis = require("../config/redis");
-const {
-  signAccessToken,
-  signRefreshToken,
-  verifyRefreshToken,
-} = require("../utils/generateToken");
+import Tenant from "../models/Tenant.js";
+import User from "../models/User.js";
+import redis from "../config/redis.js";
+import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../utils/generateToken.js";
+import { NODE_ENV } from "../config/env.js";
 
-// ─── Helper: set refresh token as httpOnly cookie ────────────────────────────
-const setRefreshCookie = (res, token) => {
-  res.cookie("refreshToken", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
-  });
+const COOKIE_OPTS = {
+  httpOnly: true,
+  secure: NODE_ENV === "production",
+  sameSite: "strict",
+  maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
-// ─── Helper: blacklist a jti in Redis ────────────────────────────────────────
-const blacklistToken = async (decoded) => {
-  if (!redis) return; // Redis not configured -- skip silently
-  const ttl = decoded.exp - Math.floor(Date.now() / 1000);
-  if (ttl > 0) {
-    await redis.set(`bl:${decoded.jti}`, "1", "EX", ttl);
-  }
+const tokenPair = (payload) => ({
+  accessToken:  signAccessToken(payload),
+  refreshToken: signRefreshToken(payload),
+});
+
+const blacklist = async (token) => {
+  if (!redis) return;
+  try {
+    const decoded = verifyRefreshToken(token);
+    const ttl = decoded.exp - Math.floor(Date.now() / 1000);
+    if (ttl > 0) await redis.set(`bl:${decoded.jti}`, "1", "EX", ttl);
+  } catch { /* expired or invalid — nothing to blacklist */ }
 };
 
-// ─── POST /api/auth/register ─────────────────────────────────────────────────
-// Creates Tenant + Admin user atomically, returns JWT pair
-const register = async (req, res) => {
+/**
+ * POST /api/auth/register
+ * Creates a new workspace (Tenant) and the first admin account.
+ * Returns an access token + sets a refresh cookie.
+ */
+export const register = async (req, res) => {
   const { businessName, name, email, password } = req.body;
 
-  if (!businessName || !name || !email || !password) {
+  if (!businessName || !name || !email || !password)
     return res.status(400).json({ success: false, message: "All fields are required" });
-  }
 
-  if (password.length < 8) {
+  if (password.length < 8)
     return res.status(400).json({ success: false, message: "Password must be at least 8 characters" });
-  }
 
-  // Generate slug from business name
-  const slug =
-    businessName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") +
-    "-" +
-    Date.now();
-
-  // Create tenant first
+  const slug = `${businessName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`;
   const tenant = await Tenant.create({ name: businessName, slug });
+  const user   = await User.create({ tenantId: tenant._id, name, email, passwordHash: password, role: "admin" });
 
-  // Create admin user (passwordHash pre-save hook hashes it)
-  const user = await User.create({
-    tenantId: tenant._id,
-    name,
-    email,
-    passwordHash: password,
-    role: "admin",
-  });
-
-  const payload = { userId: user._id, tenantId: tenant._id, role: user.role };
-  const accessToken = signAccessToken(payload);
-  const refreshToken = signRefreshToken(payload);
-
-  setRefreshCookie(res, refreshToken);
+  const { accessToken, refreshToken } = tokenPair({ userId: user._id, tenantId: tenant._id, role: user.role });
+  res.cookie("refreshToken", refreshToken, COOKIE_OPTS);
 
   res.status(201).json({
     success: true,
-    message: "Workspace created successfully",
     accessToken,
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      tenantId: tenant._id,
-      tenantName: tenant.name,
-    },
+    user: { id: user._id, name: user.name, email: user.email, role: user.role, tenantId: tenant._id },
   });
 };
 
-// ─── POST /api/auth/login ─────────────────────────────────────────────────────
-// bcrypt compare, issue access token (body) + refresh token (httpOnly cookie)
-const login = async (req, res) => {
+/**
+ * POST /api/auth/login
+ * Validates credentials and issues a new token pair.
+ */
+export const login = async (req, res) => {
   const { email, password } = req.body;
 
-  if (!email || !password) {
+  if (!email || !password)
     return res.status(400).json({ success: false, message: "Email and password are required" });
-  }
 
-  // Need passwordHash (excluded by default via select:false)
-  const user = await User.findOne({ email: email.toLowerCase() }).select(
-    "+passwordHash"
-  );
+  const user = await User.findOne({ email: email.toLowerCase() }).select("+passwordHash");
+  const valid = user?.isActive && await user.comparePassword(password);
 
-  if (!user || !user.isActive) {
+  if (!valid)
     return res.status(401).json({ success: false, message: "Invalid credentials" });
-  }
 
-  const isMatch = await user.comparePassword(password);
-  if (!isMatch) {
-    return res.status(401).json({ success: false, message: "Invalid credentials" });
-  }
-
-  // Update last active
   user.lastActive = new Date();
   await user.save({ validateBeforeSave: false });
 
-  const payload = { userId: user._id, tenantId: user.tenantId, role: user.role };
-  const accessToken = signAccessToken(payload);
-  const refreshToken = signRefreshToken(payload);
+  const { accessToken, refreshToken } = tokenPair({ userId: user._id, tenantId: user.tenantId, role: user.role });
+  res.cookie("refreshToken", refreshToken, COOKIE_OPTS);
 
-  setRefreshCookie(res, refreshToken);
-
-  res.status(200).json({
+  res.json({
     success: true,
     accessToken,
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      tenantId: user.tenantId,
-    },
+    user: { id: user._id, name: user.name, email: user.email, role: user.role, tenantId: user.tenantId },
   });
 };
 
-// ─── POST /api/auth/logout ────────────────────────────────────────────────────
-// Blacklist refresh token jti in Redis, clear cookie
-const logout = async (req, res) => {
-  const token = req.cookies?.refreshToken;
-
-  if (token) {
-    try {
-      const decoded = verifyRefreshToken(token);
-      await blacklistToken(decoded);
-    } catch {
-      // Expired or invalid token -- still clear the cookie
-    }
-  }
-
-  res.clearCookie("refreshToken", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-  });
-
-  res.status(200).json({ success: true, message: "Logged out successfully" });
+/**
+ * POST /api/auth/logout
+ * Blacklists the refresh token in Redis and clears the cookie.
+ */
+export const logout = async (req, res) => {
+  await blacklist(req.cookies?.refreshToken);
+  res.clearCookie("refreshToken", COOKIE_OPTS);
+  res.json({ success: true, message: "Logged out" });
 };
 
-// ─── GET /api/auth/me ─────────────────────────────────────────────────────────
-// Returns current user (no passwordHash -- excluded by schema)
-const me = async (req, res) => {
-  const user = await User.findById(req.user.userId).populate(
-    "tenantId",
-    "name slug settings.widget"
-  );
-
-  if (!user) {
-    return res.status(404).json({ success: false, message: "User not found" });
-  }
-
-  res.status(200).json({ success: true, user });
+/**
+ * GET /api/auth/me
+ * Returns the authenticated user with their tenant info.
+ */
+export const me = async (req, res) => {
+  const user = await User.findById(req.user.userId).populate("tenantId", "name slug settings.widget");
+  if (!user) return res.status(404).json({ success: false, message: "User not found" });
+  res.json({ success: true, user });
 };
-
-module.exports = { register, login, logout, me };

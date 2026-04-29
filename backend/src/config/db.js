@@ -1,34 +1,21 @@
-require("dotenv").config();
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
+import { MONGODB_URI } from "./env.js";
 
 const MAX_RETRIES = 5;
-const INITIAL_DELAY = 1000;
-const MAX_DELAY = 30000;
 
-async function ConnectDB(retryCount = 0) {
+async function connectDB(attempt = 0) {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
-
-    console.log("Database Connected");
-  } catch (error) {
-    console.log(`Connection attempt ${retryCount + 1} failed: `, error.message);
-
-    if (retryCount < MAX_RETRIES) {
-      const delay = Math.min(
-        INITIAL_DELAY * Math.pow(2, retryCount),
-        MAX_DELAY,
-      );
-
-      console.log(`Retrying in ${delay / 1000} seconds...`);
-
-      setTimeout(() => {
-        ConnectDB(retryCount + 1);
-      }, delay);
-    } else {
-      console.error("Max retries reached. Could not connect to MongoDB");
+    await mongoose.connect(MONGODB_URI);
+    console.log("MongoDB connected");
+  } catch (err) {
+    if (attempt >= MAX_RETRIES) {
+      console.error("MongoDB: max retries reached, exiting");
       process.exit(1);
     }
+    const delay = Math.min(1000 * 2 ** attempt, 30000);
+    console.warn(`MongoDB: retry ${attempt + 1} in ${delay / 1000}s`);
+    setTimeout(() => connectDB(attempt + 1), delay);
   }
 }
 
-module.exports = { ConnectDB };
+export default connectDB;
