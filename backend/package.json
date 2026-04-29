@@ -1,0 +1,31 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "backend",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm run test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DATBOI-MAYANK/Velox.git"
+  },
+  "keywords": [
+    "Velox"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/DATBOI-MAYANK/Velox/issues"
+  },
+  "homepage": "https://github.com/DATBOI-MAYANK/Velox#readme",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^4.22.1",
+    "express-async-errors": "^3.1.1",
+    "helmet": "^8.1.0",
+    "ioredis": "^5.10.1",
+    "mongoose": "^9.6.0"
+  }
+}
