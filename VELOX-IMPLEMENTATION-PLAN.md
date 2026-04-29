@@ -307,54 +307,53 @@ Businesses add one `<script>` tag with their API key. Widget has fully scoped CS
 
 ```
 backend/
-â”œâ”€â”€ src/
-â”‚   â”œâ”€â”€ config/
-â”‚   â”‚   â”œâ”€â”€ db.js               MongoDB connection with retry logic
-â”‚   â”‚   â”œâ”€â”€ redis.js            ioredis client setup
-â”‚   â”‚   â””â”€â”€ env.js              dotenv loader -- fails fast if vars missing
-â”‚   â”œâ”€â”€ middleware/
-â”‚   â”‚   â”œâ”€â”€ auth.js             Verifies JWT, attaches req.user
-â”‚   â”‚   â”œâ”€â”€ rbac.js             requireRole('admin') -- checks req.user.role
-â”‚   â”‚   â”œâ”€â”€ tenant.js           Extracts tenantId from JWT, attaches req.tenant
-â”‚   â”‚   â”œâ”€â”€ rateLimiter.js      Redis-backed sliding window rate limiter
-â”‚   â”‚   â”œâ”€â”€ security.js         Helmet + CORS + mongo-sanitize + xss + hpp
-â”‚   â”‚   â”œâ”€â”€ validate.js         Joi/Zod schema validation per route
-â”‚   â”‚   â””â”€â”€ errorHandler.js     Global error handler -- consistent JSON format
-â”‚   â”œâ”€â”€ models/
-â”‚   â”‚   â”œâ”€â”€ Tenant.js
-â”‚   â”‚   â”œâ”€â”€ User.js
-â”‚   â”‚   â”œâ”€â”€ Ticket.js
-â”‚   â”‚   â”œâ”€â”€ Message.js
-â”‚   â”‚   â”œâ”€â”€ FAQ.js
-â”‚   â”‚   â””â”€â”€ Analytics.js
-â”‚   â”œâ”€â”€ routes/
-â”‚   â”‚   â”œâ”€â”€ auth.routes.js
-â”‚   â”‚   â”œâ”€â”€ ticket.routes.js
-â”‚   â”‚   â”œâ”€â”€ chat.routes.js
-â”‚   â”‚   â”œâ”€â”€ admin.routes.js
-â”‚   â”‚   â”œâ”€â”€ ai.routes.js
-â”‚   â”‚   â”œâ”€â”€ analytics.routes.js
-â”‚   â”‚   â””â”€â”€ widget.routes.js
-â”‚   â”œâ”€â”€ controllers/            One file per route group, thin -- delegates to services
-â”‚   â”œâ”€â”€ services/
-â”‚   â”‚   â”œâ”€â”€ ai.service.js       LLM integration -- classify, suggest, summarize, auto-reply
-â”‚   â”‚   â”œâ”€â”€ routing.service.js  Smart ticket routing logic
-â”‚   â”‚   â”œâ”€â”€ cache.service.js    Redis get/set/del helpers with TTL
-â”‚   â”‚   â””â”€â”€ analytics.service.js  Aggregation pipeline builders
-â”‚   â”œâ”€â”€ socket/
-â”‚   â”‚   â”œâ”€â”€ index.js            Socket.IO server + Redis adapter init
-â”‚   â”‚   â”œâ”€â”€ auth.js             Socket auth middleware
-â”‚   â”‚   â”œâ”€â”€ chatHandler.js      join, leave, send, typing events
-â”‚   â”‚   â””â”€â”€ notificationHandler.js  ticket:new, ticket:assigned events
-â”‚   â”œâ”€â”€ utils/
-â”‚   â”‚   â”œâ”€â”€ generateToken.js    JWT sign/verify helpers
-â”‚   â”‚   â”œâ”€â”€ prompts.js          All LLM prompt templates
-â”‚   â”‚   â””â”€â”€ apiKey.js           Widget API key generation and validation
-â”‚   â””â”€â”€ server.js               Entry point -- Express + Socket.IO + middleware chain
-â”œâ”€â”€ Dockerfile
-â”œâ”€â”€ .env.example
-â””â”€â”€ package.json
-```
+    src/
+        config/
+            db.js               MongoDB connection with retry logic
+            redis.js            ioredis client setup
+            env.js              dotenv loader -- fails fast if vars missing
+        middleware/
+            auth.js             Verifies JWT, attaches req.user
+            rbac.js             requireRole('admin') -- checks req.user.role
+            tenant.js           Extracts tenantId from JWT, attaches req.tenant
+            rateLimiter.js      Redis-backed sliding window rate limiter
+            security.js         Helmet + CORS + mongo-sanitize + xss + hpp
+            validate.js         Joi/Zod schema validation per route
+            errorHandler.js     Global error handler -- consistent JSON format
+        models/
+            Tenant.js
+            User.js
+            Ticket.js
+            Message.js
+            FAQ.js
+            Analytics.js
+        routes/
+            auth.routes.js
+            ticket.routes.js
+            chat.routes.js
+            admin.routes.js
+            ai.routes.js
+            analytics.routes.js
+            widget.routes.js
+        controllers/            One file per route group, thin -- delegates to services
+        services/
+            ai.service.js       LLM integration -- classify, suggest, summarize, auto-reply
+            routing.service.js  Smart ticket routing logic
+            cache.service.js    Redis get/set/del helpers with TTL
+            analytics.service.js  Aggregation pipeline builders
+        socket/
+            index.js            Socket.IO server + Redis adapter init
+            auth.js             Socket auth middleware
+            chatHandler.js      join, leave, send, typing events
+            notificationHandler.js  ticket:new, ticket:assigned events
+        utils/
+            generateToken.js    JWT sign/verify helpers
+            prompts.js          All LLM prompt templates
+            apiKey.js           Widget API key generation and validation
+        server.js               Entry point -- Express + Socket.IO + middleware chain
+    Dockerfile
+    .env.example
+    package.json```
 
 ---
 
@@ -747,74 +746,73 @@ Two location blocks:
 
 ```
 frontend/
-â”œâ”€â”€ public/
-â”‚   â””â”€â”€ widget-loader.js        Embeddable script
-â”œâ”€â”€ src/
-â”‚   â”œâ”€â”€ app/
-â”‚   â”‚   â”œâ”€â”€ store.js            Redux configureStore with all slices
-â”‚   â”‚   â”œâ”€â”€ App.jsx             Router + layout wrapper
-â”‚   â”‚   â””â”€â”€ index.css           Global resets + font imports
-â”‚   â”œâ”€â”€ design/
-â”‚   â”‚   â”œâ”€â”€ tokens.css          All CSS custom properties
-â”‚   â”‚   â”œâ”€â”€ Button.jsx + .css
-â”‚   â”‚   â”œâ”€â”€ Card.jsx + .css
-â”‚   â”‚   â”œâ”€â”€ Input.jsx + .css
-â”‚   â”‚   â”œâ”€â”€ Badge.jsx
-â”‚   â”‚   â”œâ”€â”€ Modal.jsx
-â”‚   â”‚   â”œâ”€â”€ Sidebar.jsx
-â”‚   â”‚   â”œâ”€â”€ Toast.jsx
-â”‚   â”‚   â””â”€â”€ Skeleton.jsx
-â”‚   â”œâ”€â”€ features/
-â”‚   â”‚   â”œâ”€â”€ auth/
-â”‚   â”‚   â”‚   â”œâ”€â”€ authSlice.js
-â”‚   â”‚   â”‚   â”œâ”€â”€ Login.jsx + .css
-â”‚   â”‚   â”‚   â”œâ”€â”€ Signup.jsx + .css
-â”‚   â”‚   â”‚   â””â”€â”€ ProtectedRoute.jsx
-â”‚   â”‚   â”œâ”€â”€ chat/
-â”‚   â”‚   â”‚   â”œâ”€â”€ chatSlice.js
-â”‚   â”‚   â”‚   â”œâ”€â”€ ChatWindow.jsx + .css
-â”‚   â”‚   â”‚   â”œâ”€â”€ MessageBubble.jsx
-â”‚   â”‚   â”‚   â”œâ”€â”€ MessageInput.jsx
-â”‚   â”‚   â”‚   â”œâ”€â”€ TypingIndicator.jsx
-â”‚   â”‚   â”‚   â””â”€â”€ AISuggestionPanel.jsx
-â”‚   â”‚   â”œâ”€â”€ tickets/
-â”‚   â”‚   â”‚   â”œâ”€â”€ ticketSlice.js
-â”‚   â”‚   â”‚   â”œâ”€â”€ TicketInbox.jsx + .css
-â”‚   â”‚   â”‚   â”œâ”€â”€ TicketCard.jsx
-â”‚   â”‚   â”‚   â”œâ”€â”€ TicketDetail.jsx + .css
-â”‚   â”‚   â”‚   â””â”€â”€ TicketFilters.jsx
-â”‚   â”‚   â”œâ”€â”€ admin/
-â”‚   â”‚   â”‚   â”œâ”€â”€ adminSlice.js
-â”‚   â”‚   â”‚   â”œâ”€â”€ AdminLayout.jsx
-â”‚   â”‚   â”‚   â”œâ”€â”€ UserManagement.jsx + .css
-â”‚   â”‚   â”‚   â”œâ”€â”€ FAQManager.jsx + .css
-â”‚   â”‚   â”‚   â”œâ”€â”€ AISettings.jsx
-â”‚   â”‚   â”‚   â””â”€â”€ WidgetSettings.jsx
-â”‚   â”‚   â”œâ”€â”€ analytics/
-â”‚   â”‚   â”‚   â”œâ”€â”€ analyticsSlice.js
-â”‚   â”‚   â”‚   â”œâ”€â”€ AnalyticsDashboard.jsx + .css
-â”‚   â”‚   â”‚   â”œâ”€â”€ StatCard.jsx
-â”‚   â”‚   â”‚   â””â”€â”€ Charts.jsx
-â”‚   â”‚   â”œâ”€â”€ widget/
-â”‚   â”‚   â”‚   â”œâ”€â”€ WidgetContainer.jsx
-â”‚   â”‚   â”‚   â”œâ”€â”€ WidgetChat.jsx
-â”‚   â”‚   â”‚   â””â”€â”€ Widget.css
-â”‚   â”‚   â””â”€â”€ landing/
-â”‚   â”‚       â”œâ”€â”€ LandingPage.jsx + .css
-â”‚   â”‚       â”œâ”€â”€ HeroSection.jsx
-â”‚   â”‚       â”œâ”€â”€ FeatureCards.jsx
-â”‚   â”‚       â””â”€â”€ HowItWorks.jsx
-â”‚   â”œâ”€â”€ hooks/
-â”‚   â”‚   â”œâ”€â”€ useSocket.js
-â”‚   â”‚   â”œâ”€â”€ useAuth.js
-â”‚   â”‚   â””â”€â”€ useDebounce.js
-â”‚   â”œâ”€â”€ utils/
-â”‚   â”‚   â”œâ”€â”€ api.js              Axios instance + JWT interceptor + auto-refresh on 401
-â”‚   â”‚   â””â”€â”€ constants.js        Role enums, status enums, priority colors
-â”‚   â””â”€â”€ main.jsx
-â”œâ”€â”€ vite.config.js
-â””â”€â”€ package.json
-```
+    public/
+        widget-loader.js        Embeddable script
+    src/
+        app/
+            store.js            Redux configureStore with all slices
+            App.jsx             Router + layout wrapper
+            index.css           Global resets + font imports
+        design/
+            tokens.css          All CSS custom properties
+            Button.jsx + .css
+            Card.jsx + .css
+            Input.jsx + .css
+            Badge.jsx
+            Modal.jsx
+            Sidebar.jsx
+            Toast.jsx
+            Skeleton.jsx
+        features/
+            auth/
+                authSlice.js
+                Login.jsx + .css
+                Signup.jsx + .css
+                ProtectedRoute.jsx
+            chat/
+                chatSlice.js
+                ChatWindow.jsx + .css
+                MessageBubble.jsx
+                MessageInput.jsx
+                TypingIndicator.jsx
+                AISuggestionPanel.jsx
+            tickets/
+                ticketSlice.js
+                TicketInbox.jsx + .css
+                TicketCard.jsx
+                TicketDetail.jsx + .css
+                TicketFilters.jsx
+            admin/
+                adminSlice.js
+                AdminLayout.jsx
+                UserManagement.jsx + .css
+                FAQManager.jsx + .css
+                AISettings.jsx
+                WidgetSettings.jsx
+            analytics/
+                analyticsSlice.js
+                AnalyticsDashboard.jsx + .css
+                StatCard.jsx
+                Charts.jsx
+            widget/
+                WidgetContainer.jsx
+                WidgetChat.jsx
+                Widget.css
+            landing/
+                LandingPage.jsx + .css
+                HeroSection.jsx
+                FeatureCards.jsx
+                HowItWorks.jsx
+        hooks/
+            useSocket.js
+            useAuth.js
+            useDebounce.js
+        utils/
+            api.js              Axios instance + JWT interceptor + auto-refresh on 401
+            constants.js        Role enums, status enums, priority colors
+        main.jsx
+    vite.config.js
+    package.json```
 
 ---
 
