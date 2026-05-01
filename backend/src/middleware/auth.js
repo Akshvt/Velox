@@ -12,7 +12,7 @@ export async function requireAuth(req, res, next) {
   if (!token)
     return res.status(401).json({ success: false, message: "No token provided" });
 
-  // Throws JsonWebTokenError or TokenExpiredError — caught by global errorHandler
+  // Throws JsonWebTokenError or TokenExpiredError - caught by global errorHandler
   const decoded = verifyAccessToken(token);
 
   // Check if this token was manually invalidated (e.g. after logout)
