@@ -32,7 +32,7 @@ const tenantSchema = new mongoose.Schema(
     },
 
     settings: {
-      // AI behaviour config — admins can tune this from the dashboard
+      // AI behaviour config - admins can tune this from the dashboard
       ai: {
         enabled: {
           type:    Boolean,
@@ -86,8 +86,5 @@ const tenantSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
-tenantSchema.index({ slug:   1 });
-tenantSchema.index({ apiKey: 1 });
 
 export default mongoose.model("Tenant", tenantSchema);

@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 /**
  * A User belongs to exactly one Tenant.
  * The compound index on (tenantId + email) means the same email address
- * can exist in two different workspaces — they're completely separate accounts.
+ * can exist in two different workspaces - they're completely separate accounts.
  */
 const userSchema = new mongoose.Schema(
   {
@@ -24,7 +24,7 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim:      true,
     },
-    // Never returned in queries — select: false means you have to explicitly
+    // Never returned in queries - select: false means you have to explicitly
     // ask for it with .select("+passwordHash")
     passwordHash: {
       type:     String,
@@ -44,7 +44,7 @@ const userSchema = new mongoose.Schema(
       type:    Date,
       default: Date.now,
     },
-    // Stored for future refresh token rotation — not used in auth v1
+    // Stored for future refresh token rotation - not used in auth v1
     refreshTokenHash: {
       type:   String,
       select: false,
@@ -56,7 +56,7 @@ const userSchema = new mongoose.Schema(
 userSchema.index({ tenantId: 1, email: 1 }, { unique: true });
 userSchema.index({ tenantId: 1, role:  1 });
 
-// Hash the password before saving — only runs when passwordHash is modified
+// Hash the password before saving - only runs when passwordHash is modified
 userSchema.pre("save", async function (next) {
   if (!this.isModified("passwordHash")) return next();
   this.passwordHash = await bcrypt.hash(this.passwordHash, 12);
