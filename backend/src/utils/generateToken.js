@@ -7,19 +7,19 @@ import {
   JWT_REFRESH_EXPIRY,
 } from "../config/env.js";
 
-// Shared sign helper — every token gets a unique jti for Redis blacklisting
+// Shared sign helper - every token gets a unique jti for Redis blacklisting
 const sign = (payload, secret, expiresIn) =>
   jwt.sign({ ...payload, jti: uuid() }, secret, { expiresIn });
 
 /**
- * Access token — short-lived (15m), sent in response body.
+ * Access token - short-lived (15m), sent in response body.
  * Client stores this in memory only, never localStorage.
  */
 export const signAccessToken = (payload) =>
   sign(payload, JWT_ACCESS_SECRET, JWT_ACCESS_EXPIRY);
 
 /**
- * Refresh token — long-lived (7d), delivered as an httpOnly cookie.
+ * Refresh token - long-lived (7d), delivered as an httpOnly cookie.
  * Used to get a new access token without re-logging in.
  */
 export const signRefreshToken = (payload) =>
