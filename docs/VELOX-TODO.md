@@ -207,8 +207,8 @@ frontend/
 
 ### Phase 8 -- Infra + Deploy
 
-- [ ] **B47** -- Add compound MongoDB indexes to all collections (see schema index list in plan)
-- [ ] **B48** -- Input validation: Zod/Joi schemas for all request bodies, plug into `src/middleware/validate.js`
+- [x] **B47** -- Add compound MongoDB indexes to all collections (see schema index list in plan)
+- [x] **B48** -- Input validation: Zod/Joi schemas for all request bodies, plug into `src/middleware/validate.js`
 - [ ] **B49** -- `Dockerfile` -- multi-stage: builder → prod image, non-root user
 - [ ] **B50** -- `docker-compose.yml` -- nginx + api-1/2/3 (YAML anchors) + mongo + redis, all with health checks
 - [ ] **B51** -- `nginx.conf` -- `/api/` round-robin, `/socket.io/` ip_hash + Upgrade headers, `limit_req_zone`
@@ -296,7 +296,7 @@ frontend/
 - [ ] **F47** -- `Toast.jsx` wired to `uiSlice.notifications` -- auto-dismiss 5s, slide-in from top-right
 - [ ] **F48** -- Skeleton loaders for ticket inbox, chat window, analytics cards while data fetches
 - [ ] **F49** -- Empty states for all lists (no tickets, no FAQs, no agents)
-- [ ] **F50** -- Error boundaries around Dashboard, Admin, Analytics
+- [x] **F50** -- Error boundaries around Dashboard, Admin, Analytics
 - [ ] **F51** -- Responsive layout: test at 320px / 768px / 1024px / 1440px -- inbox collapses on mobile, drawer nav
 - [ ] **F52** -- Micro-animations: card hover lift, button press tactile, typing dots bounce, toast slide-in
 - [ ] **F53** -- Seed Redux store with demo data (3 tickets, some messages) so demo never starts on empty screen
