@@ -142,7 +142,7 @@ docker compose ps   # All 7 containers should be "Up" / "healthy"
 
 Open **http://localhost** and register your first account.
 
-> 📖 For the complete deployment guide (SSL, scaling, troubleshooting), see [DEPLOYMENT.md](./DEPLOYMENT.md).
+> 📖 For the complete deployment guide (SSL, scaling, troubleshooting), see [DEPLOYMENT.md](./docs/DEPLOYMENT.md).
 
 ---
 
@@ -153,7 +153,6 @@ Velox/
 ├── .env.example              # Root env template (Docker Compose secrets)
 ├── docker-compose.yml        # 7-service container orchestration
 ├── nginx.conf                # Reverse proxy + load balancer
-├── DEPLOYMENT.md             # Complete deployment guide
 │
 ├── backend/
 │   ├── .env.example          # Backend env template
@@ -184,12 +183,8 @@ Velox/
 │       └── styles/            # Global CSS + Tailwind config
 │
 └── docs/
-    ├── architecture.png       # System architecture diagram
-    ├── ai_flow.png            # AI processing pipeline
-    ├── db_schema.png          # Database schema diagram
-    ├── ticket_lifecycle.png   # Ticket state machine
-    ├── SECURITY_SCALABILITY_REPORT.md
-    └── VELOX-IMPLEMENTATION-PLAN.md
+    ├── DEPLOYMENT.md                  # Complete deployment guide
+    └── SECURITY-SCALABILITY-REPORT.md # Security audit + 10k CCU scalability analysis
 ```
 
 ---
@@ -273,7 +268,7 @@ Velox is hardened for production with defence-in-depth:
 - **JWT Security** — Short-lived access tokens (15 min), httpOnly refresh cookies, Redis-backed JTI blacklisting for instant revocation
 - **Tenant Isolation** — Every database query is scoped to `tenantId`; no cross-tenant data leakage is possible
 
-> 📖 Full audit report: [docs/SECURITY_SCALABILITY_REPORT.md](./docs/SECURITY_SCALABILITY_REPORT.md)
+> 📖 Full audit report: [docs/SECURITY-SCALABILITY-REPORT.md](./docs/SECURITY-SCALABILITY-REPORT.md)
 
 ---
 
@@ -294,7 +289,7 @@ To add more replicas:
 
 Socket.IO events stay synchronized across all replicas via the **Redis adapter** (`@socket.io/redis-adapter`). Kill any instance — the remaining ones continue serving without data loss.
 
-> 📖 Full scaling guide: [DEPLOYMENT.md](./DEPLOYMENT.md#9-scaling)
+> 📖 Full scaling guide: [DEPLOYMENT.md](./docs/DEPLOYMENT.md#9-scaling)
 
 ---
 
@@ -335,10 +330,8 @@ The agent dashboard adapts from a three-panel layout on desktop to a stacked dra
 
 | Document | Description |
 |----------|-------------|
-| [DEPLOYMENT.md](./DEPLOYMENT.md) | Step-by-step deployment guide for a fresh server |
-| [docs/SECURITY_SCALABILITY_REPORT.md](./docs/SECURITY_SCALABILITY_REPORT.md) | Security audit + 10k CCU scalability analysis |
-| [docs/VELOX-IMPLEMENTATION-PLAN.md](./docs/VELOX-IMPLEMENTATION-PLAN.md) | Full implementation plan with diagrams |
-| [docs/PRD.md](./docs/PRD.md) | Product Requirements Document |
+| [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) | Step-by-step deployment guide for a fresh server |
+| [docs/SECURITY-SCALABILITY-REPORT.md](./docs/SECURITY-SCALABILITY-REPORT.md) | Security audit + 10k CCU scalability analysis |
 
 ---
 
