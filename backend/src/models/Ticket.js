@@ -73,6 +73,7 @@ const ticketSchema = new mongoose.Schema(
     },
     resolvedAt: { type: Date },
     closedAt:   { type: Date },
+    lastMessageAt: { type: Date },
   },
   { timestamps: true }
 );

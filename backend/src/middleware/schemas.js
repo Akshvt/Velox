@@ -41,7 +41,7 @@ export const createTicketSchema = z.object({
 });
 
 export const updateTicketSchema = z.object({
-  status: z.enum(["open", "in-progress", "resolved", "closed"]).optional(),
+  status: z.enum(["open", "in_progress", "resolved", "closed"]).optional(),
   priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
   assignedTo: z.union([objectId, z.literal(""), z.null()]).optional(),
   category: shortStr.optional(),
@@ -92,6 +92,32 @@ export const updateFAQSchema = z.object({
   isActive: z.boolean().optional(),
 }).refine((d) => Object.values(d).some((v) => v !== undefined), { message: "Provide at least one field" });
 
+// --- Admin KB Articles ---
+export const createKBSchema = z.object({
+  title: shortStr,
+  content: longStr,
+  category: shortStr.optional(),
+  status: z.enum(["Draft", "Published", "Archived"]).optional(),
+  tags: z.array(shortStr).optional(),
+});
+
+export const updateKBSchema = z.object({
+  title: shortStr.optional(),
+  content: longStr.optional(),
+  category: shortStr.optional(),
+  status: z.enum(["Draft", "Published", "Archived"]).optional(),
+  tags: z.array(shortStr).optional(),
+  usedCount: z.number().int().min(0).optional(),
+}).refine((d) => Object.values(d).some((v) => v !== undefined), { message: "Provide at least one field" });
+
+// --- Admin Reports ---
+export const createReportSchema = z.object({
+  name: shortStr,
+  type: z.enum(["Performance", "Satisfaction", "Knowledge Base", "Customer", "SLA", "Export"]),
+  desc: shortStr.optional(),
+  frequency: z.enum(["One-time", "Daily", "Weekly", "Monthly"]).optional(),
+});
+
 // --- Admin Settings ---
 export const aiSettingsSchema = z.object({
   enabled: z.boolean().optional(),
@@ -118,4 +144,13 @@ export const widgetSessionSchema = z.object({
   apiKey: z.string().min(1),
   customerName: shortStr.optional(),
   customerEmail: email.optional(),
+});
+
+export const widgetTicketSchema = z.object({
+  apiKey: z.string().min(1),
+  content: longStr.optional(),
+  customerName: shortStr.optional(),
+  customerEmail: email.optional(),
+  subject: shortStr.optional(),
+  transcript: z.array(z.any()).optional(),
 });

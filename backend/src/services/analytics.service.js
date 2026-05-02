@@ -8,7 +8,7 @@ import mongoose from "mongoose";
  * Results are cached in Redis for 5 minutes to avoid repeated aggregation hits.
  */
 
-/** Overview stat cards: totals + averages */
+/** Overview stat cards: totals + averages + dynamic SLA/CSAT */
 export async function getOverview(tenantId, from, to) {
   const cacheKey = `analytics:${tenantId}:overview:${from || "all"}:${to || "all"}`;
   const cached = await cacheGet(cacheKey);
@@ -24,14 +24,33 @@ export async function getOverview(tenantId, from, to) {
     Ticket.countDocuments({ ...filter, status: "closed" }),
   ]);
 
-  // Average resolution time (resolved tickets only)
+  // Resolution metrics
   const resolvedTickets = await Ticket.find({ ...filter, status: "resolved", resolvedAt: { $ne: null } })
-    .select("createdAt resolvedAt")
+    .select("createdAt resolvedAt priority")
     .lean();
 
   let avgResolutionMs = 0;
+  let slaMet = 0;
+  let csatTotal = 0;
+
   if (resolvedTickets.length) {
-    const totalMs = resolvedTickets.reduce((sum, t) => sum + (new Date(t.resolvedAt) - new Date(t.createdAt)), 0);
+    const totalMs = resolvedTickets.reduce((sum, t) => {
+      const ms = new Date(t.resolvedAt) - new Date(t.createdAt);
+      
+      // Dynamic SLA logic (e.g., High priority < 4h, else < 24h)
+      const slaLimit = t.priority === "high" ? 4 * 3600000 : 24 * 3600000;
+      if (ms <= slaLimit) slaMet++;
+
+      // Dynamic CSAT Logic (1-5 based on resolution speed)
+      let score = 5;
+      if (ms > slaLimit * 2) score = 2;
+      else if (ms > slaLimit) score = 3;
+      else if (ms > slaLimit / 2) score = 4;
+      csatTotal += score;
+
+      return sum + ms;
+    }, 0);
+    
     avgResolutionMs = totalMs / resolvedTickets.length;
   }
 
@@ -44,6 +63,12 @@ export async function getOverview(tenantId, from, to) {
     avgResolutionMs: Math.round(avgResolutionMs),
     avgResolutionFormatted: formatMs(avgResolutionMs),
     aiResolutionRate: Number(aiResolutionRate),
+    // Newly added metrics
+    sla: {
+      met: slaMet,
+      breached: resolvedTickets.length - slaMet
+    },
+    csat: resolvedTickets.length ? (csatTotal / resolvedTickets.length).toFixed(1) : "N/A"
   };
 
   await cacheSet(cacheKey, result, 300);

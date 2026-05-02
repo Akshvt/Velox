@@ -57,10 +57,9 @@ userSchema.index({ tenantId: 1, email: 1 }, { unique: true });
 userSchema.index({ tenantId: 1, role:  1 });
 
 // Hash the password before saving - only runs when passwordHash is modified
-userSchema.pre("save", async function (next) {
-  if (!this.isModified("passwordHash")) return next();
+userSchema.pre("save", async function () {
+  if (!this.isModified("passwordHash")) return;
   this.passwordHash = await bcrypt.hash(this.passwordHash, 12);
-  next();
 });
 
 /**

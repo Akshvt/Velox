@@ -10,6 +10,7 @@ export const listUsers = async (req, res) => {
   const users = await User.find({ tenantId: req.tenant })
     .select("-passwordHash -refreshTokenHash")
     .sort({ createdAt: -1 })
+    .limit(1000)
     .lean();
   res.json({ success: true, users });
 };
@@ -73,7 +74,7 @@ export const listFAQs = async (req, res) => {
   if (category) filter.category = category;
   if (search)   filter.question = { $regex: search, $options: "i" };
 
-  const faqs = await FAQ.find(filter).sort({ createdAt: -1 }).lean();
+  const faqs = await FAQ.find(filter).sort({ createdAt: -1 }).limit(1000).lean();
   res.json({ success: true, faqs });
 };
 

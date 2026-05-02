@@ -24,6 +24,7 @@ const tenantSchema = new mongoose.Schema(
     apiKey: {
       type:   String,
       unique: true,
+      sparse: true,
     },
     plan: {
       type:    String,
