@@ -82,7 +82,7 @@ export default function Register() {
       <DoodleBackground />
 
       <div className="relative z-10 grid min-h-screen grid-cols-1 lg:grid-cols-[1.05fr_1fr]">
-        {/* ===== LEFT — agency hero ===== */}
+        {/* ===== LEFT - agency hero ===== */}
         <section
           className="relative hidden flex-col justify-between overflow-hidden px-10 pb-10 pt-12 lg:flex xl:px-14"
           style={{ background: "#FAF6E9" }}
@@ -96,7 +96,7 @@ export default function Register() {
             01
           </span>
 
-          {/* top row — index + tag */}
+          {/* top row - index + tag */}
           <div className="relative z-10 flex items-center justify-between">
             <span data-parallax="10" className="inline-flex items-center gap-2.5 rounded-full border-[3px] border-black bg-white px-4 py-2 font-mono text-[13px] uppercase tracking-[0.2em] shadow-[5px_5px_0_0_#000]">
               <span className="h-2.5 w-2.5 rounded-full bg-[#99E885]" />
@@ -118,7 +118,7 @@ export default function Register() {
               className="brutal-sticker inline-block"
               style={{ background: "#F7CB46", fontSize: "1rem", padding: "0.6rem 1.15rem", boxShadow: "6px 6px 0 0 #000", transform: "rotate(-2deg)" }}
             >
-              ⚡ Get Started — Free Forever
+              ⚡ Get Started - Free Forever
             </span>
 
             <h1
@@ -161,7 +161,7 @@ export default function Register() {
             </div>
           </div>
 
-          {/* bottom row — stats + spinning star */}
+          {/* bottom row - stats + spinning star */}
           <div className="relative z-10 mt-10 flex items-end justify-between gap-6">
             <div className="grid grid-cols-3 gap-4 text-left">
               <Stat n="12k+" label="Teams onboarded" bg="#FFE9A8" />
@@ -197,7 +197,7 @@ export default function Register() {
           </div>
         </section>
 
-        {/* ===== RIGHT — form ===== */}
+        {/* ===== RIGHT - form ===== */}
         <section className="relative flex items-center justify-center px-5 py-10 sm:px-8" style={{ background: "#FAF6E9" }}>
           {/* logo top-right of right pane */}
           <Link
@@ -249,7 +249,7 @@ export default function Register() {
                 </span>
               </h2>
               <p className="mt-3 text-[13.5px] font-semibold text-black/65">
-                Sign up free — no credit card needed.
+                Sign up free - no credit card needed.
               </p>
 
               <form onSubmit={handleSubmit} className="mt-6 space-y-4">
@@ -410,9 +410,9 @@ function useParallax() {
     let running = false;
 
     // tuning
-    const RADIUS = 160;       // px — how close before it starts pushing
-    const MAX_PUSH = 60;      // px — strongest displacement
-    const EASE = 0.18;        // 0..1 — higher = snappier follow
+    const RADIUS = 160;       // px - how close before it starts pushing
+    const MAX_PUSH = 60;      // px - strongest displacement
+    const EASE = 0.18;        // 0..1 - higher = snappier follow
 
     function onMove(e) {
       mouseX = e.clientX;

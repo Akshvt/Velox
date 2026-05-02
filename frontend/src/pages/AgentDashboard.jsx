@@ -145,10 +145,10 @@ export default function AgentDashboard() {
     allTickets.find((t) => t.id === activeTicket) ??
     allTickets[0] ?? {
       id: null,
-      code: "—",
+      code: "-",
       status: "Open",
       tone: "#E9F5E0",
-      initials: "—",
+      initials: "-",
       name: "No tickets yet",
       email: "",
       subject: "Waiting for the first ticket",
@@ -423,7 +423,7 @@ export default function AgentDashboard() {
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Clock size={12} strokeWidth={2.5} className="text-black/45" />
-              {ticket.time || "—"}
+              {ticket.time || "-"}
             </span>
           </div>
 
@@ -459,11 +459,11 @@ export default function AgentDashboard() {
               </div>
             )}
             {messages.length === 0 && !historyQuery.isLoading && isRealTicket && (
-              <div className="py-12 text-center text-[12px] font-medium text-black/45">No messages yet — say hi.</div>
+              <div className="py-12 text-center text-[12px] font-medium text-black/45">No messages yet - say hi.</div>
             )}
             {!isRealTicket && (
               <div className="py-12 text-center text-[12px] font-medium text-black/45">
-                {ticket.id ? "Live escalation preview — connect this lead to a real ticket from your backend." : "No ticket selected."}
+                {ticket.id ? "Live escalation preview - connect this lead to a real ticket from your backend." : "No ticket selected."}
               </div>
             )}
             {messages.map((m) =>

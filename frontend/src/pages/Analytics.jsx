@@ -52,12 +52,12 @@ export default function Analytics() {
 
   const liveKpis = useMemo(() => {
     if (!overview) return DEFAULT_KPIS;
-    const fmt = (n) => (typeof n === "number" ? n.toLocaleString() : n ?? "—");
+    const fmt = (n) => (typeof n === "number" ? n.toLocaleString() : n ?? "-");
     return [
       { ...DEFAULT_KPIS[0], value: fmt(overview.total) },
       { ...DEFAULT_KPIS[1], value: fmt(overview.open) },
       { ...DEFAULT_KPIS[2], value: fmt(overview.resolved) },
-      { ...DEFAULT_KPIS[3], value: overview.avgResolutionFormatted || "—" },
+      { ...DEFAULT_KPIS[3], value: overview.avgResolutionFormatted || "-" },
       { ...DEFAULT_KPIS[4], value: overview.csat !== "N/A" ? `${overview.csat} / 5` : "N/A" },
     ];
   }, [overview]);
@@ -81,8 +81,8 @@ export default function Analytics() {
         tone: "#E9F5E0",
         color: "#3FA02A",
         resolved: a.resolved || 0,
-        avgResp: a.total ? `${a.resolved}/${a.total}` : "—",
-        csat: "—",
+        avgResp: a.total ? `${a.resolved}/${a.total}` : "-",
+        csat: "-",
       };
     });
   }, [agentsData]);

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 /**
- * NotificationsMenu — bell icon + dropdown panel.
+ * NotificationsMenu - bell icon + dropdown panel.
  *
  * Backend-ready: this is a pure UI shell. Replace the `useMockNotifications`
  * hook with a real one (e.g. `useNotifications()` backed by react-query)

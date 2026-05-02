@@ -1,7 +1,7 @@
 import { http } from "./_http";
 
 /**
- * AI endpoints — backend/src/routes/ai.routes.js (auth + tenant required).
+ * AI endpoints - backend/src/routes/ai.routes.js (auth + tenant required).
  *
  *   POST /ai/suggest-reply        body: { ticketId }   -> { suggestion }
  *   POST /ai/summarize/:ticketId                       -> { summary }

@@ -56,7 +56,7 @@ function adaptFaq(f) {
       ? new Date(f.updatedAt).toLocaleString()
       : f.createdAt
       ? new Date(f.createdAt).toLocaleString()
-      : "—",
+      : "-",
     views:    f.views ?? null,
     votes:    f.helpfulCount ?? null,
     raw:      f,
@@ -98,7 +98,7 @@ export default function FAQManagement() {
     allFaqs.find((f) => f.id === selectedId) ||
     allFaqs[0] || {
       id: null, q: "No FAQs yet", answer: "Click \"New FAQ\" to add your first knowledge base entry.",
-      category: "—", language: "English", status: "Published", updated: "—", views: null, votes: null,
+      category: "-", language: "English", status: "Published", updated: "-", views: null, votes: null,
     };
 
   const handleNew = async () => {
@@ -228,14 +228,14 @@ export default function FAQManagement() {
                     <Td className="font-medium text-black/65">{f.language}</Td>
                     <Td><Pill tone={STATUS_TONES[f.status]}>{f.status}</Pill></Td>
                     <Td className="font-medium text-black/55 whitespace-nowrap">{f.updated}</Td>
-                    <Td className="text-right font-semibold text-black/70">{f.views ?? "—"}</Td>
+                    <Td className="text-right font-semibold text-black/70">{f.views ?? "-"}</Td>
                     <Td className="text-right">
                       {f.votes != null ? (
                         <span className="inline-flex items-center gap-1 font-semibold text-black/70">
                           <ThumbsUp size={11} strokeWidth={2.5} className="text-[#3FA02A]" /> {f.votes}
                         </span>
                       ) : (
-                        <span className="text-black/40">—</span>
+                        <span className="text-black/40">-</span>
                       )}
                     </Td>
                     <Td className="text-right">
@@ -303,7 +303,7 @@ export default function FAQManagement() {
               <Meta label="Created By">Sophia Lee</Meta>
               <Meta label="Created On">Apr 25, 2025 10:00 AM</Meta>
               <Meta label="Last Updated">{selected.updated}</Meta>
-              <Meta label="Views">{selected.views ?? "—"}</Meta>
+              <Meta label="Views">{selected.views ?? "-"}</Meta>
               <Meta label="Helpful Votes">
                 <span className="inline-flex items-center gap-2">
                   <span className="inline-flex items-center gap-1 text-[#3FA02A]"><ThumbsUp size={11} strokeWidth={2.5} /> {selected.votes ?? 0}</span>

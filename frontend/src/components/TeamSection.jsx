@@ -11,11 +11,11 @@ import {
   Cloud,
 } from "lucide-react";
 
-// Team headshots — bg-removed PNGs so hair/silhouette overflow the card frame.
+// Team headshots - bg-removed PNGs so hair/silhouette overflow the card frame.
 import mayankPhoto from "@/assets/team/Mayank Roy Background Removed.png";
 import arvPhoto from "@/assets/team/arv3 Background Removed.png";
 import lucyPhoto from "@/assets/team/lucy Background Removed.png";
-// Decor stickers — neo-pop overlays
+// Decor stickers - neo-pop overlays
 import fistPencil from "@/assets/decor/WhatsApp Image 2026-05-02 at 1.52.29 PM Background Removed.png";
 import handDecor from "@/assets/decor/hand.png";
 import lucyDecor from "@/assets/decor/lucy.png";
@@ -36,7 +36,7 @@ const members = [
     name: "Mayank Roy",
     handle: "@mayankroy",
     role: "Full-Stack Software Engineer",
-    tagline: "backend whisperer fr — talks to APIs in his sleep, ships the UI between sips.",
+    tagline: "backend whisperer fr - talks to APIs in his sleep, ships the UI between sips.",
     specialty: "Backend lead",
     icon: Server,
     chips: ["Backend", "APIs", "Full-stack"],
@@ -56,7 +56,7 @@ const members = [
     name: "Atharv",
     handle: "@atharv",
     role: "Full-Stack Software Engineer",
-    tagline: "system design lead — diagrams the whole vibe, then makes the UI actually slap.",
+    tagline: "system design lead - diagrams the whole vibe, then makes the UI actually slap.",
     specialty: "System design + UI",
     icon: Layout,
     chips: ["System Design", "Frontend", "Full-stack"],
@@ -78,7 +78,7 @@ const members = [
     name: "Akshat",
     handle: "@akshat",
     role: "Full-Stack Software Engineer",
-    tagline: "deploys at 3am, no cap — keeps the cluster breathing while the rest of us sleep.",
+    tagline: "deploys at 3am, no cap - keeps the cluster breathing while the rest of us sleep.",
     specialty: "Backend + Deploy",
     icon: Cloud,
     chips: ["Backend", "Deploy", "Full-stack"],
@@ -98,7 +98,7 @@ export default function TeamSection() {
       if (!cards.length) return;
 
       // Use gsap.matchMedia so each breakpoint owns its own
-      // animation tree — when the viewport crosses 768px the
+      // animation tree - when the viewport crosses 768px the
       // matching block reverts and the other one runs. This
       // prevents a stale ScrollTrigger pin from trapping the
       // user on the first card after a resize.
@@ -205,16 +205,16 @@ export default function TeamSection() {
         </p>
       </div>
 
-      {/* Cards grid — stacks on mobile, 3-up on md+ */}
+      {/* Cards grid - stacks on mobile, 3-up on md+ */}
       <div className="mt-10 flex flex-col items-center gap-12 sm:gap-10 md:mt-0 md:min-h-0 md:flex-1 md:grid md:grid-cols-3 md:items-center md:gap-6 md:pt-16">
         {members.map((m) => (
           <TeamCard key={m.handle} member={m} />
         ))}
       </div>
 
-      {/* Hint — desktop only (mobile users just scroll) */}
+      {/* Hint - desktop only (mobile users just scroll) */}
       <p className="mt-8 hidden items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-wide text-black/50 md:flex">
-        <Sparkles size={11} strokeWidth={3} /> scroll slowly — cards reveal one-by-one
+        <Sparkles size={11} strokeWidth={3} /> scroll slowly - cards reveal one-by-one
       </p>
     </section>
   );
@@ -224,7 +224,7 @@ export default function TeamSection() {
 function TeamCard({ member }) {
   const cardRef = useRef(null);
 
-  // Magnetic repel — decorative elements push away from the cursor
+  // Magnetic repel - decorative elements push away from the cursor
   // smoothly while preserving each element's static rotation.
   useGSAP(
     () => {
@@ -302,7 +302,7 @@ function TeamCard({ member }) {
         className="team-card-inner relative mx-auto w-full [transform-style:preserve-3d]"
         style={{ aspectRatio: "4 / 5", maxHeight: "min(72vh, 580px)" }}
       >
-        {/* Neo-pop sticker overlay (e.g. fist+pencil on first card) — front only */}
+        {/* Neo-pop sticker overlay (e.g. fist+pencil on first card) - front only */}
         {member.sticker && (
           <img
             src={member.sticker}
@@ -313,7 +313,7 @@ function TeamCard({ member }) {
           />
         )}
 
-        {/* Decorative shape stickers (per-card) — placed ON the photo, front only */}
+        {/* Decorative shape stickers (per-card) - placed ON the photo, front only */}
         {member.decor === "arv" && (
           <BurstSticker
             data-magnet
@@ -321,7 +321,7 @@ function TeamCard({ member }) {
           />
         )}
 
-        {/* Extra image stickers (per-card) — front only */}
+        {/* Extra image stickers (per-card) - front only */}
         {member.extras?.map((s, i) => (
           <img
             key={i}
@@ -337,7 +337,7 @@ function TeamCard({ member }) {
           className="absolute inset-0 flex flex-col rounded-[28px] border-[3px] border-black p-3 shadow-[8px_8px_0_0_#000] [backface-visibility:hidden]"
           style={{ background: member.cardBg }}
         >
-          {/* Photo well — transparent PNG silhouette overflows the top */}
+          {/* Photo well - transparent PNG silhouette overflows the top */}
           <div
             className="relative w-full shrink-0"
             style={{
@@ -425,7 +425,7 @@ function TeamCard({ member }) {
           </div>
         </div>
 
-        {/* BACK — neo-pop mystery card */}
+        {/* BACK - neo-pop mystery card */}
         <div
           className="absolute inset-0 overflow-hidden rounded-[28px] border-[3px] border-black bg-cream shadow-[8px_8px_0_0_#000] [backface-visibility:hidden] [transform:rotateY(180deg)]"
         >
@@ -451,13 +451,13 @@ function TeamCard({ member }) {
             }}
           />
 
-          {/* Yellow burst — top-left corner */}
+          {/* Yellow burst - top-left corner */}
           <BurstSticker
             data-magnet
             className="absolute -left-6 -top-6 h-24 w-24 -rotate-[12deg] drop-shadow-[3px_3px_0_rgba(0,0,0,0.85)]"
           />
 
-          {/* Pink dot — bottom-left */}
+          {/* Pink dot - bottom-left */}
           <div
             aria-hidden
             data-magnet
@@ -465,7 +465,7 @@ function TeamCard({ member }) {
             style={{ background: "#FFC9E0" }}
           />
 
-          {/* Mint square — bottom-right, rotated */}
+          {/* Mint square - bottom-right, rotated */}
           <div
             aria-hidden
             data-magnet
@@ -607,7 +607,7 @@ function Sparkle({ small = false }) {
   );
 }
 
-/* Sunburst rays behind the head — desi poster vibe. */
+/* Sunburst rays behind the head - desi poster vibe. */
 function Sunburst({ color = "rgba(0,0,0,0.18)" }) {
   const rays = 18;
   return (

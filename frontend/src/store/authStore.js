@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import { STORAGE_KEYS } from "@lib/constants";
 
 /**
- * Auth store — holds current user + access token.
+ * Auth store - holds current user + access token.
  * Refresh token is set as httpOnly cookie by the backend.
  *
  * The access token is mirrored to `localStorage.velox.accessToken`

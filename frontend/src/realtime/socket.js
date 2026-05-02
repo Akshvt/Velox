@@ -3,7 +3,7 @@ import { STORAGE_KEYS } from "@lib/constants";
 import { mockSocket } from "./mockSocket";
 
 /**
- * Socket.IO contract — backend/src/socket/*.js
+ * Socket.IO contract - backend/src/socket/*.js
  *
  * Connection:
  *   - URL: backend origin (Socket.IO mounts on the same HTTP server as Express).
@@ -68,7 +68,7 @@ export function disconnectSocket() {
 }
 
 /**
- * Customer-side widget socket — auths via tenant apiKey + sessionToken,
+ * Customer-side widget socket - auths via tenant apiKey + sessionToken,
  * NOT the agent's JWT. Use a separate instance so it doesn't clash with the
  * agent dashboard's socket on the same browser.
  */
@@ -90,7 +90,7 @@ export function disconnectWidgetSocket() {
   }
 }
 
-/* Event-name catalog — must mirror backend/src/socket/*.js */
+/* Event-name catalog - must mirror backend/src/socket/*.js */
 export const SOCKET_EVENTS = {
   // Server -> client (chat)
   CHAT_MESSAGE: "chat:message",

@@ -247,7 +247,7 @@ export default function Chat() {
       setSending(true);
       try {
         if (!ticketId) {
-          // First message — create the ticket; AI auto-reply (if any) is in `messages`
+          // First message - create the ticket; AI auto-reply (if any) is in `messages`
           const res = await widget.createTicket({
             apiKey: WIDGET_API_KEY,
             content: text,
@@ -273,7 +273,7 @@ export default function Chat() {
               );
           }
         } else {
-          // Subsequent messages — push over socket; agent/AI replies arrive via the listener
+          // Subsequent messages - push over socket; agent/AI replies arrive via the listener
           const sock = getWidgetSocket({
             apiKey: WIDGET_API_KEY,
             sessionToken: `sess_${ticketId}`,
@@ -674,7 +674,7 @@ export default function Chat() {
           {/* input bar */}
           <form onSubmit={send} className="border-t border-black/5 p-2 sm:p-4">
             <div className="flex items-center gap-1.5 rounded-full bg-[#F4F4EE] px-2 py-1.5 sm:gap-2 sm:px-3 sm:py-2">
-              {/* mode switcher (text / photo / voice) — hidden on small */}
+              {/* mode switcher (text / photo / voice) - hidden on small */}
               <div className="hidden items-center gap-1 rounded-full bg-white p-1 shadow-[0_2px_8px_rgba(0,0,0,0.04)] sm:flex">
                 {[
                   { key: "text",  Icon: Pencil },
@@ -735,7 +735,7 @@ export default function Chat() {
             </div>
           </form>
 
-          {/* compact flow strip + AI confidence + agent button — bottom of chat panel */}
+          {/* compact flow strip + AI confidence + agent button - bottom of chat panel */}
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-black/5 px-3 py-2 sm:px-4 sm:py-2.5">
             {/* AI confidence chip */}
             <div className="inline-flex min-w-0 items-center gap-2 rounded-full px-3 py-1" style={{ background: "#F1ECFF" }} title="Intent: Order Status Inquiry">

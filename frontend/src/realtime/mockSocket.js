@@ -32,7 +32,7 @@ export function mockSocket() {
             api.__dispatch("chat:typing", { from: "ai", typing: false });
             api.__dispatch("chat:ai-reply", {
               conversationId: payload?.conversationId,
-              text: "Thanks for your message — looking into that for you.",
+              text: "Thanks for your message - looking into that for you.",
               time: now(),
             });
           }, 900);

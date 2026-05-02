@@ -1,7 +1,7 @@
 import { http } from "./_http";
 
 /**
- * Reports service — backend/src/routes/admin.routes.js
+ * Reports service - backend/src/routes/admin.routes.js
  *
  *   GET    /admin/reports
  *   POST   /admin/reports       body: { name, type, desc?, frequency? }

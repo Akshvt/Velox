@@ -109,7 +109,7 @@ export default function Login() {
       <DoodleBackground />
 
       <div className="relative z-10 grid min-h-screen grid-cols-1 lg:grid-cols-[1.05fr_1fr]">
-        {/* ===== LEFT — agency hero ===== */}
+        {/* ===== LEFT - agency hero ===== */}
         <section className="relative hidden flex-col justify-between overflow-hidden px-10 pb-10 pt-12 lg:flex xl:px-14">
           {/* big watermark numeral */}
           <span
@@ -193,7 +193,7 @@ export default function Login() {
             </div>
           </div>
 
-          {/* bottom row — stats + spinning star */}
+          {/* bottom row - stats + spinning star */}
           <div className="relative z-10 mt-12 flex items-end justify-between gap-8">
             <div className="flex flex-1 flex-wrap gap-4">
               <Stat n="1.2k" label="Tickets resolved" bg="#FFE9A8" />
@@ -228,7 +228,7 @@ export default function Login() {
           </div>
         </section>
 
-        {/* ===== RIGHT — form ===== */}
+        {/* ===== RIGHT - form ===== */}
         <section className="relative flex items-center justify-center px-5 py-10 sm:px-8">
           <Link
             to="/"
@@ -289,7 +289,7 @@ export default function Login() {
                 Choose your role and enter your credentials.
               </p>
 
-              {/* Role selector — big toggle cards */}
+              {/* Role selector - big toggle cards */}
               <div className="mt-6">
                 <span className="mb-2 block text-[11px] font-bold uppercase tracking-wider text-black/65">
                   I am signing in as <span className="text-black">*</span>

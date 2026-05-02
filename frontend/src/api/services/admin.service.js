@@ -1,7 +1,7 @@
 import { http } from "./_http";
 
 /**
- * Admin namespace — single entry point for everything under /api/admin/*.
+ * Admin namespace - single entry point for everything under /api/admin/*.
  * All endpoints require auth + tenant + role: "admin".
  *
  * Backend: backend/src/routes/admin.routes.js

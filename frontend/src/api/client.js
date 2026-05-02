@@ -86,7 +86,7 @@ apiClient.interceptors.response.use(
     } catch (err) {
       flushWaiters(err, null);
       localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
-      // Soft redirect — only when we're in the browser & not already on /login
+      // Soft redirect - only when we're in the browser & not already on /login
       if (
         typeof window !== "undefined" &&
         !window.location.pathname.startsWith("/login")

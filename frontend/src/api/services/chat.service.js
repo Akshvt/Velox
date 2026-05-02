@@ -22,9 +22,9 @@ export const chat = {
   /** body: { content, senderType? }  senderType defaults to "agent" on backend */
   send: (ticketId, body) => http.post(`/chat/${ticketId}/messages`, body),
 
-  // Widget session lifecycle (public — apiKey-based)
+  // Widget session lifecycle (public - apiKey-based)
   startSession: (body) => http.post("/widget/session", body),
-  /** No backend endpoint yet — placeholder so callers don't crash. */
+  /** No backend endpoint yet - placeholder so callers don't crash. */
   endSession: (_sessionId) =>
     Promise.resolve({ success: true, notImplemented: true }),
   /** Manual escalation isn't a REST endpoint; backend escalates via routing. */

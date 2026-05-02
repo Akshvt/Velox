@@ -24,7 +24,7 @@ export const tickets = {
   update: (id, body) => http.patch(`/tickets/${id}`, body),
   remove: (id) => http.del(`/tickets/${id}`),
 
-  // Convenience wrappers — all map to PATCH /tickets/:id
+  // Convenience wrappers - all map to PATCH /tickets/:id
   assign: (id, agentId) =>
     http.patch(`/tickets/${id}`, { assignedTo: agentId || null }),
   resolve: (id) => http.patch(`/tickets/${id}`, { status: "resolved" }),
@@ -33,6 +33,6 @@ export const tickets = {
   // Internal notes
   addNote: (id, content) => http.post(`/tickets/${id}/notes`, { content }),
 
-  // No /tickets/stats — read from analytics overview instead.
+  // No /tickets/stats - read from analytics overview instead.
   stats: () => http.get("/analytics/overview"),
 };

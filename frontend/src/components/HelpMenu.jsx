@@ -12,13 +12,13 @@ import {
 } from "lucide-react";
 
 /**
- * HelpMenu — help/support dropdown.
+ * HelpMenu - help/support dropdown.
  *
  * Backend-ready:
  *  - Replace the static `LINKS` array with a fetched help-center index if needed.
  *  - "Contact support" can be wired to a real /api/support/contact endpoint
  *    (e.g. open Intercom / Zendesk widget).
- *  - "Keyboard shortcuts" opens a local modal — no backend.
+ *  - "Keyboard shortcuts" opens a local modal - no backend.
  */
 
 const LINKS = [

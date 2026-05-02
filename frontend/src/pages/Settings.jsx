@@ -144,7 +144,7 @@ export default function Settings() {
 }
 
 /* ────────────────────────────────────────────────────────────────────── */
-/* Theme pane — clean grid + accent picker                                */
+/* Theme pane - clean grid + accent picker                                */
 /* ────────────────────────────────────────────────────────────────────── */
 
 function ThemePane() {
@@ -224,7 +224,7 @@ function ThemePane() {
 }
 
 /* ────────────────────────────────────────────────────────────────────── */
-/* Future Scope — just the text                                           */
+/* Future Scope - just the text                                           */
 /* ────────────────────────────────────────────────────────────────────── */
 
 function FutureScope() {

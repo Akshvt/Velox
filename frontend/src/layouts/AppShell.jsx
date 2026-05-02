@@ -4,7 +4,7 @@ import Sidebar from "./Sidebar.jsx";
 import Topbar from "./Topbar.jsx";
 
 /**
- * AppShell — common layout for every authenticated screen.
+ * AppShell - common layout for every authenticated screen.
  *
  *   <AppShell active="dashboard" title="Dashboard" subtitle="..." actions={<...>}>
  *     <YourPageContent />

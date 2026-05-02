@@ -1,5 +1,5 @@
 /**
- * Reports module — Now implemented on the backend.
+ * Reports module - Now implemented on the backend.
  * Backend: admin.routes.js → report.controller.js
  *
  *   GET    /admin/reports

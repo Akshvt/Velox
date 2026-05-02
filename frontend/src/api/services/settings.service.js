@@ -15,7 +15,7 @@ import { http } from "./_http";
  *     PUT  /auth/profile               body: { name?, email? }
  *     PUT  /auth/password              body: { currentPassword, newPassword }
  *
- * No /notifications endpoint on backend — placeholder kept for UI continuity.
+ * No /notifications endpoint on backend - placeholder kept for UI continuity.
  */
 export const settings = {
   // Workspace = tenant-wide settings (AI + widget + routing rules)

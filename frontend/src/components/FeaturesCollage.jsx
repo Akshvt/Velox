@@ -15,9 +15,9 @@ import {
 gsap.registerPlugin(ScrollTrigger);
 
 /**
- * Why Velox — horizontal scattered card strip (Neo-Brutalist).
+ * Why Velox - horizontal scattered card strip (Neo-Brutalist).
  * Cards sit in a single horizontal row with varied sizes, vertical
- * offsets, and rotations — like polaroids on a corkboard. Scrolls
+ * offsets, and rotations - like polaroids on a corkboard. Scrolls
  * horizontally as the user scrolls vertically (GSAP scroll-pin).
  */
 export default function FeaturesCollage() {
@@ -98,7 +98,7 @@ export default function FeaturesCollage() {
         card.addEventListener("mouseleave", onLeave);
       });
 
-      // Pixar-style per-letter wave on the big tape — subtle, intentional.
+      // Pixar-style per-letter wave on the big tape - subtle, intentional.
       const jollyChars = gsap.utils.toArray(".jolly-char");
       if (jollyChars.length) {
         gsap.set(jollyChars, { transformOrigin: "50% 100%" });
@@ -141,7 +141,7 @@ export default function FeaturesCollage() {
           </span>
         </h2>
         <p className="mx-auto mt-4 max-w-lg text-sm font-medium md:text-base">
-          Scroll to explore — every reason teams ship support faster with Velox.
+          Scroll to explore - every reason teams ship support faster with Velox.
         </p>
       </div>
 
@@ -151,7 +151,7 @@ export default function FeaturesCollage() {
           ref={track}
           className="flex h-full items-center gap-7 px-[10vw] will-change-transform"
         >
-          {/* Card 1 — large lilac */}
+          {/* Card 1 - large lilac */}
           <CollageCard
             tone="#D9C7FF"
             rotate="-3.5deg"
@@ -187,14 +187,14 @@ export default function FeaturesCollage() {
               AI Chat <span className="text-outline">Engine</span>
             </h3>
             <p className="mt-5 text-[18px] font-medium leading-relaxed">
-              Agents that understand context, tone & intent — replying with
+              Agents that understand context, tone & intent - replying with
               accuracy customers actually trust.
             </p>
-            {/* Big surprised eyes — alive! */}
+            {/* Big surprised eyes - alive! */}
             <Doodle.Eyes className="mt-auto" />
           </CollageCard>
 
-          {/* Card 2 — tall mint hero */}
+          {/* Card 2 - tall mint hero */}
           <CollageCard
             tone="#99E885"
             rotate="2.5deg"
@@ -240,7 +240,7 @@ export default function FeaturesCollage() {
             </div>
           </CollageCard>
 
-          {/* Card 3 — sky stat */}
+          {/* Card 3 - sky stat */}
           <CollageCard
             tone="#C0F7FE"
             rotate="-2.5deg"
@@ -267,7 +267,7 @@ export default function FeaturesCollage() {
             </div>
           </CollageCard>
 
-          {/* Card 4 — pink routing */}
+          {/* Card 4 - pink routing */}
           <CollageCard
             tone="#FE90E8"
             rotate="3deg"
@@ -288,13 +288,13 @@ export default function FeaturesCollage() {
               Smart Routing
             </h3>
             <p className="mt-4 text-[18px] font-medium leading-relaxed">
-              Escalates only when it matters — to the right human, with full
+              Escalates only when it matters - to the right human, with full
               context preserved.
             </p>
             <Doodle.Routes className="mt-auto" />
           </CollageCard>
 
-          {/* Card 5 — cream analytics with bars doodle */}
+          {/* Card 5 - cream analytics with bars doodle */}
           <CollageCard
             tone="#FFDC8B"
             rotate="-2.5deg"
@@ -316,7 +316,7 @@ export default function FeaturesCollage() {
               Real-Time<br />Analytics
             </h3>
             <p className="mt-4 text-[18px] font-medium leading-relaxed">
-              CSAT, deflection rate, resolution time — in dashboards your team
+              CSAT, deflection rate, resolution time - in dashboards your team
               actually opens.
             </p>
             <div className="mt-6 flex items-center gap-2">
@@ -336,7 +336,7 @@ export default function FeaturesCollage() {
             <Doodle.Bars className="mt-auto" />
           </CollageCard>
 
-          {/* Card 6 — sky security */}
+          {/* Card 6 - sky security */}
           <CollageCard
             tone="#C0F7FE"
             rotate="2.8deg"
@@ -363,7 +363,7 @@ export default function FeaturesCollage() {
             <Doodle.Lock className="mt-auto" />
           </CollageCard>
 
-          {/* Card 7 — coral integrations */}
+          {/* Card 7 - coral integrations */}
           <CollageCard
             tone="#FF6B6B"
             rotate="-3deg"
@@ -389,7 +389,7 @@ export default function FeaturesCollage() {
             <Doodle.Chips className="mt-auto" />
           </CollageCard>
 
-          {/* Card 8 — black CTA, colorful confetti edition */}
+          {/* Card 8 - black CTA, colorful confetti edition */}
           <CollageCard
             tone="#000"
             rotate="2deg"
@@ -568,7 +568,7 @@ const Doodle = {
   ),
   Eyes: ({ className = "" }) => (
     <svg viewBox="0 0 320 300" className={`h-48 w-full ${className}`} aria-hidden>
-      {/* Eyebrows — short curved strokes above each outer eye edge */}
+      {/* Eyebrows - short curved strokes above each outer eye edge */}
       <g fill="none" stroke="#000" strokeWidth="6" strokeLinecap="round">
         <path d="M 28 36 Q 70 12, 118 28" />
         <path d="M 202 28 Q 250 12, 292 36" />
@@ -576,7 +576,7 @@ const Doodle = {
 
       {/* LEFT EYE */}
       <g className="eye eye-left">
-        {/* eyeball — tall cream oval */}
+        {/* eyeball - tall cream oval */}
         <ellipse
           cx="92"
           cy="170"
@@ -586,7 +586,7 @@ const Doodle = {
           stroke="#000"
           strokeWidth="7"
         />
-        {/* pupil — large black oval with inward (right-side) triangular notch */}
+        {/* pupil - large black oval with inward (right-side) triangular notch */}
         <path
           d="M 92 80
              C 50 80, 32 118, 32 170
@@ -611,7 +611,7 @@ const Doodle = {
           stroke="#000"
           strokeWidth="7"
         />
-        {/* pupil — mirror notch on left side */}
+        {/* pupil - mirror notch on left side */}
         <path
           d="M 228 80
              C 270 80, 288 118, 288 170

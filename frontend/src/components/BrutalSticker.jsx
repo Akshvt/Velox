@@ -1,6 +1,6 @@
 import { cn } from "@lib/cn";
 
-/** Sticker / chip label — small rotated tag. */
+/** Sticker / chip label - small rotated tag. */
 export default function BrutalSticker({ tone = "mustard", className, children }) {
   const tones = {
     mustard: "bg-mustard",

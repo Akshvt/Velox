@@ -1,7 +1,7 @@
 import { http } from "./_http";
 
 /**
- * Public widget endpoints — backend/src/routes/widget.routes.js
+ * Public widget endpoints - backend/src/routes/widget.routes.js
  * Rate limited (30 req/min/IP). Uses tenant apiKey, NOT a user JWT.
  *
  *   GET  /widget/config/:apiKey            -> { tenant settings, branding }

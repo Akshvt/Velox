@@ -76,14 +76,14 @@ function adaptAgent(u) {
     status:      u.isActive === false ? "Deactivated" : "Online",
     handled:     u.metrics?.handled  ?? 0,
     resolved:    u.metrics?.resolved ?? 0,
-    avg:         u.metrics?.avg      ?? "—",
+    avg:         u.metrics?.avg      ?? "-",
     lastActive:  u.lastActiveAt
       ? new Date(u.lastActiveAt).toLocaleString()
       : u.updatedAt
       ? new Date(u.updatedAt).toLocaleDateString()
-      : "—",
-    joined:      u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—",
-    firstResp:   u.metrics?.firstResp ?? "—",
+      : "-",
+    joined:      u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "-",
+    firstResp:   u.metrics?.firstResp ?? "-",
     rating:      u.metrics?.rating    ?? 0,
     raw:         u,
   };
@@ -138,8 +138,8 @@ export default function Agents() {
   const selected =
     allAgents.find((a) => a.id === selectedId) ||
     allAgents[0] || {
-      id: null, name: "No agents yet", email: "—", role: "Agent", status: "Offline",
-      handled: 0, resolved: 0, avg: "—", lastActive: "—", joined: "—", firstResp: "—", rating: 0,
+      id: null, name: "No agents yet", email: "-", role: "Agent", status: "Offline",
+      handled: 0, resolved: 0, avg: "-", lastActive: "-", joined: "-", firstResp: "-", rating: 0,
     };
 
   const handleInvite = async () => {
@@ -317,7 +317,7 @@ export default function Agents() {
           </div>
         </Card>
 
-        {/* Right panel — Agent overview */}
+        {/* Right panel - Agent overview */}
         {showDetails && (
           <Card>
             <div className="mb-3 flex items-center justify-between">

@@ -1,7 +1,7 @@
 import { http } from "./_http";
 
 /**
- * KB Articles service — backend/src/routes/admin.routes.js
+ * KB Articles service - backend/src/routes/admin.routes.js
  *
  *   GET    /admin/kb
  *   GET    /admin/kb/:id

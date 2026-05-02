@@ -9,14 +9,14 @@ import { http } from "./_http";
  *   PATCH  /admin/users/:id/role     body: { role }
  *   PATCH  /admin/users/:id/status   body: { isActive }
  *
- * There is no GET /admin/users/:id and no DELETE — disabling is done by setting
+ * There is no GET /admin/users/:id and no DELETE - disabling is done by setting
  * isActive: false. Online/offline presence is a SOCKET event (`agent:status`),
  * not a REST endpoint.
  */
 export const agents = {
   list: (params) => http.get("/admin/users", { params }),
 
-  /** No single-user GET — fetch list and filter. */
+  /** No single-user GET - fetch list and filter. */
   get: async (id) => {
     const res = await http.get("/admin/users");
     const users = res?.users || res || [];
@@ -38,10 +38,10 @@ export const agents = {
     return results[results.length - 1] || { success: true };
   },
 
-  /** No DELETE — soft-disable via status endpoint. */
+  /** No DELETE - soft-disable via status endpoint. */
   remove: (id) => http.patch(`/admin/users/${id}/status`, { isActive: false }),
 
-  /** Presence is a socket event — emit `agent:status` over the socket instead. */
+  /** Presence is a socket event - emit `agent:status` over the socket instead. */
   setStatus: (_id, _status) =>
     Promise.resolve({
       success: false,
