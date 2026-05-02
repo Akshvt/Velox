@@ -51,10 +51,48 @@ app.use("/api/admin",     adminRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/widget",    widgetRoutes);
 
-app.get("/health", (_, res) => res.json({ status: "ok" }));
+import mongoose from "mongoose";
+import redis from "./config/redis.js";
+
+// --- Health check (used by Docker healthcheck + monitoring) ---
+app.get("/health", (_, res) => {
+  const mongoState = ["disconnected", "connected", "connecting", "disconnecting"];
+  const redisOk = redis?.status === "ready";
+
+  res.json({
+    status: "ok",
+    uptime: Math.floor(process.uptime()),
+    mongo: mongoState[mongoose.connection.readyState] || "unknown",
+    redis: redisOk ? "connected" : redis ? redis.status : "disabled",
+  });
+});
 
 // Must be registered last - catches any error thrown in route handlers
 app.use(errorHandler);
 
 await connectDB();
 httpServer.listen(PORT, () => console.log(`Server on port ${PORT}`));
+
+// --- Graceful shutdown (Docker sends SIGTERM on stop/restart) ---
+async function shutdown(signal) {
+  console.log(`\n${signal} received — shutting down gracefully...`);
+
+  // 1. Stop accepting new connections
+  httpServer.close(() => console.log("HTTP server closed"));
+
+  // 2. Close Socket.IO
+  try {
+    const { getIO } = await import("./socket/index.js");
+    getIO().close();
+    console.log("Socket.IO closed");
+  } catch { /* not initialised */ }
+
+  // 3. Close database connections
+  try { await mongoose.connection.close(); console.log("MongoDB closed"); } catch {}
+  try { if (redis) await redis.quit();      console.log("Redis closed");   } catch {}
+
+  process.exit(0);
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT",  () => shutdown("SIGINT"));
