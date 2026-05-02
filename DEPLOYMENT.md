@@ -1,0 +1,396 @@
+# Velox — Deployment Guide
+
+> Deploy Velox from zero on a fresh Ubuntu server. No prior knowledge of the codebase required.
+
+---
+
+## 1. What Is Velox?
+
+Velox is a **multi-tenant AI-powered customer support platform**. Companies sign up, get a tenant workspace, and their support agents manage tickets through a real-time dashboard. An embedded chat widget lets end-customers create tickets directly from any website.
+
+### Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18, Vite, Tailwind CSS, Zustand, React Query, Framer Motion |
+| Backend | Node.js 20, Express, Mongoose (MongoDB ODM) |
+| Database | MongoDB 6 |
+| Cache / Pub-Sub | Redis 7 |
+| Real-time | Socket.IO with Redis adapter (multi-instance sync) |
+| AI | LangChain + Mistral AI (ticket classification, auto-reply, summaries) |
+| Infra | Docker Compose → Nginx → 3 Node.js replicas → MongoDB + Redis |
+
+### Architecture Diagram
+
+```
+Browser ──► Nginx (:80)
+              ├── /           → Frontend (static React build)
+              ├── /api/*      → Round-robin across api-1, api-2, api-3
+              └── /socket.io/ → ip_hash sticky sessions across api-1, api-2, api-3
+                                    │
+                              ┌─────┼─────┐
+                              │     │     │
+                           api-1  api-2  api-3  ← All share the same Redis + MongoDB
+                              │     │     │
+                         ┌────┴─────┴─────┴────┐
+                         │   MongoDB (mongo:6)  │
+                         │   Redis (redis:7)    │
+                         └─────────────────────-┘
+```
+
+---
+
+## 2. Prerequisites
+
+You need **one server** (Ubuntu 22.04+ recommended) with:
+
+| Tool | Min Version | Install Command |
+|------|-------------|-----------------|
+| Docker Engine | 24+ | [docs.docker.com/engine/install](https://docs.docker.com/engine/install/ubuntu/) |
+| Docker Compose | v2 (bundled) | Comes with Docker Engine |
+| Git | any | `sudo apt install git` |
+
+**External services (optional):**
+
+| Service | When You Need It |
+|---------|-----------------|
+| Mistral AI API key | For AI ticket classification, auto-reply, and summaries. Without it, AI features gracefully degrade to stubs. Get a key at [console.mistral.ai](https://console.mistral.ai/). |
+| Custom domain + DNS | For SSL/HTTPS. Point an A record to your server IP. |
+
+> **You do NOT need to install Node.js, MongoDB, or Redis on the server.** Docker handles all of that.
+
+---
+
+## 3. Environment Variables — Complete Reference
+
+Velox uses **two** `.env` files. Both have `.env.example` templates in the repo.
+
+### 3A. Root `.env` — Secrets for Docker Compose
+
+Docker Compose reads this file and injects values into all 3 API containers. **This is the only file you must create before deploying.**
+
+| Variable | Required | What It Does | What To Put |
+|----------|:--------:|--------------|-------------|
+| `JWT_ACCESS_SECRET` | **Yes** | Signs short-lived access tokens (15 min) | Run: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `JWT_REFRESH_SECRET` | **Yes** | Signs long-lived refresh tokens (7 days) | Run the same command again (must be **different** from access secret) |
+| `JWT_ACCESS_EXPIRY` | No | Access token lifetime | Default: `15m` |
+| `JWT_REFRESH_EXPIRY` | No | Refresh token lifetime | Default: `7d` |
+| `CLIENT_URL` | **Yes** | The exact URL your users type in the browser. Used for CORS. | `http://localhost` for local, `https://yourdomain.com` for production |
+| `MISTRAL_API_KEY` | No | Mistral AI API key for AI features | Your key from console.mistral.ai, or leave empty for stub mode |
+| `API_KEY_SECRET` | No | HMAC secret for generating widget API keys | 64-char hex string (same command as JWT secrets) |
+
+> **MongoDB and Redis connection strings are hardcoded in `docker-compose.yml`** as `mongodb://mongo:27017/velox` and `redis://redis:6379`. These point to the Docker containers by hostname. You do NOT set them in `.env` unless you're connecting to external managed services (Atlas, ElastiCache, etc.).
+
+### 3B. Frontend `frontend/.env` — Build-Time Variables
+
+Vite bakes these into the JavaScript bundle at build time. The Dockerfile copies this file during the build stage.
+
+| Variable | Required | What It Does | What To Put |
+|----------|:--------:|--------------|-------------|
+| `VITE_API_URL` | **Yes** | Where the browser sends API requests | Must match the **Nginx entry point**: `http://localhost` for local Docker, `https://yourdomain.com` for production |
+| `VITE_SOCKET_URL` | **Yes** | Where the browser connects Socket.IO | Same value as `VITE_API_URL` (Nginx routes `/socket.io/` internally) |
+| `VITE_USE_MOCK` | **Yes** | Enables/disables the mock service worker | Must be `false` for production |
+| `VITE_APP_NAME` | No | Display name in the UI | Default: `Velox` |
+| `VITE_WIDGET_API_KEY` | No | API key for the embedded chat widget demo | A key generated by the platform after tenant registration |
+
+---
+
+## 4. Deployment — Step by Step
+
+### Step 1: Clone
+
+```bash
+git clone https://github.com/DATBOI-MAYANK/Velox.git
+cd Velox
+```
+
+### Step 2: Create the Root `.env`
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+**You must change these two lines** — generate real secrets:
+
+```bash
+# Run this twice, once for each secret:
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Paste the outputs into `.env`:
+```env
+JWT_ACCESS_SECRET=<paste first output here>
+JWT_REFRESH_SECRET=<paste second output here>
+```
+
+If you have a custom domain, also change:
+```env
+CLIENT_URL=https://yourdomain.com
+```
+
+If you have a Mistral AI key, add it:
+```env
+MISTRAL_API_KEY=your_key_here
+```
+
+### Step 3: Create the Frontend `.env`
+
+```bash
+cp frontend/.env.example frontend/.env
+nano frontend/.env
+```
+
+If deploying locally (no domain):
+```env
+VITE_API_URL=http://localhost
+VITE_SOCKET_URL=http://localhost
+```
+
+If deploying with a domain:
+```env
+VITE_API_URL=https://yourdomain.com
+VITE_SOCKET_URL=https://yourdomain.com
+```
+
+Ensure mocks are off:
+```env
+VITE_USE_MOCK=false
+```
+
+### Step 4: Build and Launch
+
+```bash
+docker compose up --build -d
+```
+
+This builds and starts **7 containers**:
+- `velox_api_1`, `velox_api_2`, `velox_api_3` — Node.js backend replicas
+- `velox_frontend` — Static React build served by Nginx
+- `velox_nginx` — Reverse proxy and load balancer (port 80)
+- `velox_mongo` — MongoDB database with persistent volume
+- `velox_redis` — Redis cache with persistent volume
+
+### Step 5: Verify Everything Is Running
+
+```bash
+docker compose ps
+```
+
+You should see all 7 containers with status `Up` or `healthy`. Wait ~40 seconds for MongoDB's health check to pass.
+
+Then open `http://localhost` (or your domain) in a browser. You should see the Velox landing page.
+
+---
+
+## 5. How Nginx Works
+
+The `nginx.conf` in the project root is mounted into the Nginx container. It defines three routing rules:
+
+| Path | Routes To | Load Balancing |
+|------|----------|----------------|
+| `/` | Frontend container (port 80) | Single upstream |
+| `/api/*` | api-1, api-2, api-3 (port 5000) | Round-robin + rate limited (10 req/s, burst 20) |
+| `/socket.io/*` | api-1, api-2, api-3 (port 5000) | `ip_hash` sticky sessions (required for WebSocket handshake) |
+
+### Changing the Domain Name
+
+In `nginx.conf`, replace:
+```nginx
+server_name _;
+```
+with:
+```nginx
+server_name yourdomain.com www.yourdomain.com;
+```
+
+### Adding SSL/HTTPS
+
+The simplest approach is a host-level Nginx that terminates SSL and forwards to Docker:
+
+```bash
+# Install Certbot on the HOST (not inside Docker)
+sudo apt install nginx certbot python3-certbot-nginx
+
+# Get certificates
+sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
+```
+
+Then configure the host Nginx to proxy to Docker's port 80:
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:80;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+---
+
+## 6. Database
+
+### MongoDB
+- Runs as a Docker container (`mongo:6`) with data persisted to a named volume `mongo-data`.
+- The API connects automatically using the internal Docker hostname `mongodb://mongo:27017/velox`.
+- **No manual setup needed.** Mongoose creates collections and indexes automatically on first boot.
+
+### Redis
+- Runs as a Docker container (`redis:7-alpine`) with data persisted to a named volume `redis-data`.
+- Used for: JWT token blacklisting (instant logout), Socket.IO cross-replica event sync, and rate limiting.
+- The API connects automatically using `redis://redis:6379`.
+
+### First User / Admin Setup
+1. Open the app and register a new account via `/register`.
+2. To promote yourself to admin, connect to MongoDB:
+   ```bash
+   docker exec -it velox_mongo mongosh velox
+   db.users.updateOne({ email: "your@email.com" }, { $set: { role: "admin" } })
+   ```
+
+---
+
+## 7. Health Checks & Monitoring
+
+### Container Health
+
+```bash
+# Quick status
+docker compose ps
+
+# Watch real-time API logs
+docker compose logs -f api-1 api-2 api-3
+
+# Watch Nginx logs
+docker compose logs -f nginx
+
+# Watch all logs
+docker compose logs -f
+```
+
+### Service Verification
+
+| Check | Command / Action |
+|-------|-----------------|
+| Frontend loads | Open `http://localhost` — landing page renders |
+| API responds | `curl http://localhost/api/health` — should return a response |
+| MongoDB connected | Look for `MongoDB connected` in API logs |
+| Redis connected | Look for `Redis connected` in API logs |
+| Socket.IO Redis adapter | Look for `Socket.IO Redis adapter attached` in API logs |
+| WebSocket works | Open browser DevTools → Network → WS filter → should see `/socket.io/` with `101 Switching Protocols` |
+
+---
+
+## 8. Common Errors & Fixes
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| CORS error in browser console | `CLIENT_URL` in root `.env` doesn't match the browser URL | Set `CLIENT_URL` to exactly what's in the browser address bar (e.g., `http://localhost`, `https://yourdomain.com`). Restart API containers. |
+| Login/Register returns 401 | Frontend is calling `localhost:5000` instead of going through Nginx | Check `frontend/.env` — `VITE_API_URL` must be `http://localhost` (port 80, not 5000). Rebuild frontend: `docker compose build frontend && docker compose up -d` |
+| Socket.IO constantly reconnects | Nginx `ip_hash` is missing, or Redis adapter failed | Check `nginx.conf` has `ip_hash;` in `socket_backend`. Check Redis logs: `docker compose logs redis`. |
+| AI returns generic/stub replies | `MISTRAL_API_KEY` is empty or invalid | Add a valid key to root `.env` and restart: `docker compose restart api-1 api-2 api-3` |
+| "REDIS_URL not set" in logs | Redis env var missing | Already fixed in `docker-compose.yml` — it hardcodes `redis://redis:6379`. If you still see this, check the container env: `docker exec velox_api_1 env | grep REDIS` |
+| MongoDB health check failing | Mongo takes ~40s to start | Wait and re-check: `docker compose ps`. If persistent, check: `docker compose logs mongo` |
+| `JWT_ACCESS_SECRET` warning on startup | Root `.env` is missing or has placeholder values | Ensure `.env` exists in project root with real secrets |
+
+---
+
+## 9. Scaling
+
+### Adding More Node.js Replicas
+
+1. In `docker-compose.yml`, duplicate the `api-3` block as `api-4`:
+   ```yaml
+   api-4:
+     <<: *api-common
+     container_name: velox_api_4
+     healthcheck:
+       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5000/health"]
+       interval: 30s
+       timeout: 10s
+       retries: 3
+       start_period: 20s
+   ```
+
+2. In `nginx.conf`, add `server api-4:5000;` to **both** upstreams:
+   ```nginx
+   upstream api_backend {
+       server api-1:5000;
+       server api-2:5000;
+       server api-3:5000;
+       server api-4:5000;
+   }
+
+   upstream socket_backend {
+       ip_hash;
+       server api-1:5000;
+       server api-2:5000;
+       server api-3:5000;
+       server api-4:5000;
+   }
+   ```
+
+3. Also add `api-4` to the Nginx `depends_on` list.
+
+4. Rebuild: `docker compose up --build -d`
+
+### Scaling to External Managed Services
+
+For production at scale, migrate off the Docker-hosted databases:
+
+| Service | Recommended | How |
+|---------|-------------|-----|
+| MongoDB | MongoDB Atlas | Change `MONGODB_URI` in `docker-compose.yml` to your Atlas connection string. Remove the `mongo` service. |
+| Redis | Upstash / AWS ElastiCache | Change `REDIS_URL` in `docker-compose.yml` to the external URI. Remove the `redis` service. |
+
+---
+
+## 10. Quick Reference
+
+### File Map
+
+```
+Velox/
+├── .env                  ← Root secrets for Docker Compose (YOU CREATE THIS)
+├── .env.example          ← Template for root .env
+├── docker-compose.yml    ← Orchestrates all 7 containers
+├── nginx.conf            ← Reverse proxy + load balancer config
+├── backend/
+│   ├── .env              ← Backend secrets (for local dev only, Docker ignores this)
+│   ├── .env.example      ← Template for backend .env
+│   ├── Dockerfile        ← Multi-stage Node.js 20 Alpine build
+│   └── src/server.js     ← Application entry point
+└── frontend/
+    ├── .env              ← Frontend build-time vars (YOU CREATE THIS)
+    ├── .env.example      ← Template for frontend .env
+    └── Dockerfile         ← Multi-stage Vite build → Nginx static serve
+```
+
+### Essential Commands
+
+```bash
+# Start everything
+docker compose up --build -d
+
+# Stop everything
+docker compose down
+
+# Stop and delete all data (volumes)
+docker compose down -v
+
+# Rebuild only frontend after .env change
+docker compose build frontend && docker compose up -d
+
+# Restart only API containers after secret change
+docker compose restart api-1 api-2 api-3
+
+# View logs
+docker compose logs -f
+
+# Open MongoDB shell
+docker exec -it velox_mongo mongosh velox
+
+# Open Redis CLI
+docker exec -it velox_redis redis-cli
+```

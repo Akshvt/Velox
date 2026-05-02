@@ -209,9 +209,9 @@ frontend/
 
 - [x] **B47** -- Add compound MongoDB indexes to all collections (see schema index list in plan)
 - [x] **B48** -- Input validation: Zod/Joi schemas for all request bodies, plug into `src/middleware/validate.js`
-- [ ] **B49** -- `Dockerfile` -- multi-stage: builder → prod image, non-root user
-- [ ] **B50** -- `docker-compose.yml` -- nginx + api-1/2/3 (YAML anchors) + mongo + redis, all with health checks
-- [ ] **B51** -- `nginx.conf` -- `/api/` round-robin, `/socket.io/` ip_hash + Upgrade headers, `limit_req_zone`
+- [x] **B49** -- `Dockerfile` -- multi-stage: builder → prod image, non-root user
+- [x] **B50** -- `docker-compose.yml` -- nginx + api-1/2/3 (YAML anchors) + mongo + redis, all with health checks
+- [x] **B51** -- `nginx.conf` -- `/api/` round-robin, `/socket.io/` ip_hash + Upgrade headers, `limit_req_zone`
 - [ ] **B52** -- Deploy to Render/Railway: set all env vars, verify live URL responds
 - [ ] **B53** -- Smoke test: hit every route, confirm `tenantId` isolation, confirm Redis adapter syncs across 2 instances
 
