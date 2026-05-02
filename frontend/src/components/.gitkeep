@@ -1,0 +1,2 @@
+# Shared, reusable presentational components (Button, Input, Modal, etc.).
+# Add one folder per component: components/Button/Button.jsx + Button.css (if complex).

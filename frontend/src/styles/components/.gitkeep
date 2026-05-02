@@ -1,0 +1,2 @@
+# Per-component custom CSS (imported only where needed, not globally).
+# Use for: complex selectors, masks, intricate keyframes, GSAP-driven setups.
