@@ -1,0 +1,8 @@
+# Feature-sliced modules. One folder per domain feature.
+# Example structure:
+#   features/auth/
+#     components/    UI specific to auth
+#     hooks/         useLogin, useRegister
+#     api.js         endpoint helpers
+#     schemas.js     zod schemas
+#     index.js       public surface
