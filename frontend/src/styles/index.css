@@ -1,0 +1,13 @@
+/* ============================================================
+   Velox — Global stylesheet entry
+   @import statements MUST come before any other rule (CSS spec).
+   ============================================================ */
+
+@import "./variables.css";
+@import "./base.css";
+@import "./animations.css";
+@import "./utilities.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
