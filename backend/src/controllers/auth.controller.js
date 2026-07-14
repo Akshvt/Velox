@@ -2,13 +2,14 @@ import Tenant from "../models/Tenant.js";
 import User from "../models/User.js";
 import redis from "../config/redis.js";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../utils/generateToken.js";
+import { generateApiKey } from "../utils/apiKey.js";
 import { NODE_ENV } from "../config/env.js";
 
 // Refresh token cookie settings - httpOnly so JS can't read it
 const COOKIE_OPTS = {
   httpOnly: true,
   secure:   NODE_ENV === "production",
-  sameSite: "strict",
+  sameSite: "lax",
   maxAge:   7 * 24 * 60 * 60 * 1000, // 7 days in ms
 };
 
@@ -50,7 +51,7 @@ export const register = async (req, res) => {
   try {
     // Slug is derived from the business name - timestamp suffix keeps it unique
     const slug = `${businessName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`;
-    tenant = await Tenant.create({ name: businessName, slug });
+    tenant = await Tenant.create({ name: businessName, slug, apiKey: generateApiKey() });
 
     // passwordHash field runs through bcrypt in the User pre-save hook
     user = await User.create({

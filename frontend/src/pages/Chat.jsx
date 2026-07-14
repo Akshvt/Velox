@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useEscalationStore } from "@store/escalationStore";
 import { useAuthStore } from "@store/authStore";
 import { widget } from "@api/services/widget.service";
+import { useWorkspaceSettings } from "@api/hooks";
 import { getWidgetSocket, disconnectWidgetSocket, SOCKET_EVENTS } from "@realtime/socket";
 import UserMenu from "@components/UserMenu.jsx";
 import {
@@ -60,8 +61,7 @@ const initialThreads = {
 };
 
 /* ----------------------------- page ----------------------------- */
-const WIDGET_API_KEY = import.meta.env.VITE_WIDGET_API_KEY || "";
-const WIDGET_LIVE = !!WIDGET_API_KEY && import.meta.env.VITE_USE_MOCK === "false";
+const MOCKS_ENABLED = import.meta.env.VITE_USE_MOCK === "true";
 
 const fmtTime = () =>
   new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -85,6 +85,11 @@ export default function Chat() {
   const navigate = useNavigate();
   const addEscalation = useEscalationStore((s) => s.addEscalation);
   const authUser = useAuthStore((s) => s.user);
+
+  // Source the tenant's widget API key from backend settings at runtime
+  const { data: workspaceData } = useWorkspaceSettings();
+  const WIDGET_API_KEY = workspaceData?.apiKey || "";
+  const WIDGET_LIVE = !!WIDGET_API_KEY && !MOCKS_ENABLED;
 
   const messages = threads[activeId] || [];
   const setMessages = (updater) =>
@@ -199,17 +204,17 @@ export default function Chat() {
   // Tear down the widget socket when the page unmounts
   useEffect(() => () => disconnectWidgetSocket(), []);
 
-  const handleEscalate = () => {
+  const handleEscalate = async () => {
     if (escalating) return;
     setEscalating(true);
     const lastUser = [...messages].reverse().find((m) => m.from === "user");
     const preview = lastUser?.text || "Customer needs help from a human agent.";
-    addEscalation({
-      name: "Guest Customer",
-      subject: "Escalated from AI chat",
-      preview,
-      transcript: messages.map(({ from, text, time }) => ({ from, text, time })),
-    });
+    const transcript = messages.map(({ from, text, time }) => ({
+      sender: from === "user" ? "customer" : from === "bot" ? "ai" : from,
+      text,
+      time,
+    }));
+
     setMessages((m) => [
       ...m,
       {
@@ -219,6 +224,45 @@ export default function Chat() {
         time: fmtTime(),
       },
     ]);
+
+    if (WIDGET_LIVE) {
+      try {
+        const res = await widget.createTicket({
+          apiKey: WIDGET_API_KEY,
+          content: preview,
+          subject: "Escalated from AI chat",
+          customerName: "Guest Customer",
+          transcript,
+        });
+        // Add to local store so the Agent Dashboard shows it immediately
+        // during the navigation transition (real ticket will also load via API)
+        addEscalation({
+          id: res?.ticket?._id,
+          name: "Guest Customer",
+          subject: "Escalated from AI chat",
+          preview,
+          transcript: messages.map(({ from, text, time }) => ({ from, text, time })),
+        });
+      } catch (err) {
+        console.error("Escalation failed:", err);
+        // Fallback: add to local store so UX isn't broken
+        addEscalation({
+          name: "Guest Customer",
+          subject: "Escalated from AI chat",
+          preview,
+          transcript: messages.map(({ from, text, time }) => ({ from, text, time })),
+        });
+      }
+    } else {
+      // Mock mode fallback
+      addEscalation({
+        name: "Guest Customer",
+        subject: "Escalated from AI chat",
+        preview,
+        transcript: messages.map(({ from, text, time }) => ({ from, text, time })),
+      });
+    }
+
     setTimeout(() => navigate("/agent"), 700);
   };
 

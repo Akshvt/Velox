@@ -121,7 +121,7 @@ export const deleteFAQ = async (req, res) => {
 export const getSettings = async (req, res) => {
   const tenant = await Tenant.findById(req.tenant).lean();
   if (!tenant) return res.status(404).json({ success: false, message: "Tenant not found" });
-  res.json({ success: true, settings: tenant.settings, name: tenant.name, plan: tenant.plan });
+  res.json({ success: true, settings: tenant.settings, name: tenant.name, plan: tenant.plan, apiKey: tenant.apiKey });
 };
 
 /** PUT /api/admin/settings/ai */
