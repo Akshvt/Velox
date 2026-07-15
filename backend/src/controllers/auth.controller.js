@@ -77,7 +77,7 @@ export const register = async (req, res) => {
         name:     user.name,
         email:    user.email,
         role:     user.role,
-        tenantId: tenant._id,
+        tenantId: { _id: tenant._id, name: tenant.name, slug: tenant.slug },
       },
     });
   } catch (error) {
@@ -101,7 +101,9 @@ export const login = async (req, res) => {
     return res.status(400).json({ success: false, message: "Email and password are required" });
 
   // passwordHash is excluded by default - must explicitly select it
-  const user = await User.findOne({ email: email.toLowerCase() }).select("+passwordHash");
+  const user = await User.findOne({ email: email.toLowerCase() })
+    .select("+passwordHash")
+    .populate("tenantId", "name slug settings.widget");
 
   if (!user || !user.isActive)
     return res.status(401).json({ success: false, message: "Invalid credentials" });

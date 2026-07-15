@@ -35,8 +35,8 @@ const SOCKET_URL = useDevProxy
   ? ""
   : configuredSocketUrl || configuredApiUrl || "http://localhost:5000";
 
-const USE_MOCK =
-  import.meta.env.VITE_USE_MOCK !== "false" && import.meta.env.DEV;
+// Mock mode: ONLY when VITE_USE_MOCK=true (default is real socket)
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 
 let socket = null;
 

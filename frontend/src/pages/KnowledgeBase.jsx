@@ -14,28 +14,18 @@ import {
   Pencil,
   Plus,
   Search,
+  Trash2,
   X,
   Loader2,
 } from "lucide-react";
-import { useKbArticles } from "@api/hooks/useKbFaq";
+import { useKbArticles, useCreateKbArticle, useUpdateKbArticle, useRemoveKbArticle } from "@api/hooks/useKbFaq";
 
-/* ----------------------------- mock data ----------------------------- */
-const SUMMARY = [
-  { key: "total",     label: "Total Articles",   value: "156",   hint: "↑ 12 this month",  icon: BookOpen,     tone: "#F1ECFF", color: "#7C5CFF" },
-  { key: "published", label: "Published",        value: "132",   hint: "85% of total",     icon: CheckCircle2, tone: "#E9F5E0", color: "#3FA02A" },
-  { key: "drafts",    label: "Drafts",           value: "18",    hint: "12% of total",     icon: FileEdit,     tone: "#FFF5DC", color: "#C28A00" },
-  { key: "used",      label: "Used in Responses",value: "1,248", hint: "This month",       icon: Eye,          tone: "#FCE7F3", color: "#D63384" },
-];
-
-
-
+/* ----------------------------- constants ----------------------------- */
 const STATUS_TONES = {
   Published: { bg: "#E9F5E0", color: "#3FA02A" },
   Draft:     { bg: "#FFF5DC", color: "#C28A00" },
   Archived:  { bg: "#F1ECFF", color: "#7C5CFF" },
 };
-
-// Removed dummy ARTICLES
 
 const CATEGORIES = ["All Categories", "Order & Shipping", "Returns & Refunds", "Payments", "Account Management", "General"];
 const SORT_OPTIONS = ["Latest", "Most Used", "Title A–Z", "Title Z–A"];
@@ -49,6 +39,8 @@ const WORKFLOW = [
   { key: "update",    title: "Update",         desc: "Edit and keep knowledge fresh",    icon: Pencil,    tone: "#E9F5E0", color: "#3FA02A" },
 ];
 
+const EMPTY_FORM = { title: "", content: "", category: "General", status: "Draft", tags: "" };
+
 /* ============================== page ============================== */
 export default function KnowledgeBase() {
   const [tab, setTab] = useState("all");
@@ -57,9 +49,48 @@ export default function KnowledgeBase() {
   const [sort, setSort] = useState("Latest");
   const [selectedId, setSelectedId] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [modal, setModal] = useState(null); // null | { mode: "create" | "edit", data: {...} }
+  const [form, setForm] = useState(EMPTY_FORM);
 
   const { data: fetchResult, isLoading } = useKbArticles();
+  const createArticle = useCreateKbArticle();
+  const updateArticle = useUpdateKbArticle();
+  const removeArticle = useRemoveKbArticle();
+
   const articles = fetchResult?.articles || [];
+
+  const openCreate = () => { setForm(EMPTY_FORM); setModal({ mode: "create" }); };
+  const openEdit = (a) => {
+    setForm({ title: a.title, content: a.content || "", category: a.category || "General", status: a.status || "Draft", tags: (a.tags || []).join(", ") });
+    setModal({ mode: "edit", id: a._id });
+  };
+  const closeModal = () => setModal(null);
+
+  const handleSave = async () => {
+    const payload = { ...form, tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean) };
+    try {
+      if (modal.mode === "create") {
+        await createArticle.mutateAsync(payload);
+      } else {
+        await updateArticle.mutateAsync({ id: modal.id, ...payload });
+      }
+      closeModal();
+    } catch (err) {
+      alert(`Save failed: ${err?.message || "unknown"}`);
+    }
+  };
+
+  const handleDelete = async (id, title) => {
+    if (!confirm(`Delete article "${title}"?`)) return;
+    try {
+      await removeArticle.mutateAsync(id);
+      if (selectedId === id) { setSelectedId(null); setShowDetails(false); }
+    } catch (err) {
+      alert(`Delete failed: ${err?.message || "unknown"}`);
+    }
+  };
+
+  const isSaving = createArticle.isPending || updateArticle.isPending;
 
   const TABS = [
     { key: "all",       label: "All Articles", count: articles.length },
@@ -103,7 +134,10 @@ export default function KnowledgeBase() {
             Filters
             <ChevronDown size={12} strokeWidth={2.5} className="text-black/50" />
           </button>
-          <button className="inline-flex items-center gap-2 rounded-full bg-black px-4 py-2 text-[12px] font-bold text-white transition-transform hover:-translate-y-0.5">
+          <button
+            onClick={openCreate}
+            className="inline-flex items-center gap-2 rounded-full bg-black px-4 py-2 text-[12px] font-bold text-white transition-transform hover:-translate-y-0.5"
+          >
             <Plus size={13} strokeWidth={3} />
             New Article
           </button>
@@ -191,8 +225,8 @@ export default function KnowledgeBase() {
                       <Td className="font-medium text-black/55">{new Date(a.updatedAt).toLocaleDateString()}</Td>
                       <Td className="text-right">
                         <span className="inline-flex items-center gap-1">
-                          <IconBtn aria-label="Edit"><Pencil size={12} strokeWidth={2.5} /></IconBtn>
-                          <IconBtn aria-label="More"><MoreHorizontal size={13} strokeWidth={2.5} /></IconBtn>
+                          <IconBtn aria-label="Edit" onClick={(e) => { e.stopPropagation(); openEdit(a); }}><Pencil size={12} strokeWidth={2.5} /></IconBtn>
+                          <IconBtn aria-label="Delete" onClick={(e) => { e.stopPropagation(); handleDelete(a._id, a.title); }}><Trash2 size={12} strokeWidth={2.5} className="text-[#D63384]" /></IconBtn>
                         </span>
                       </Td>
                     </tr>
@@ -285,17 +319,74 @@ export default function KnowledgeBase() {
             </div>
 
             <div className="mt-3 flex gap-2">
-              <button className="flex-1 rounded-full bg-black px-4 py-2 text-[12px] font-bold text-white transition-transform hover:-translate-y-0.5">
+              <button
+                onClick={() => openEdit(selected)}
+                className="flex-1 rounded-full bg-black px-4 py-2 text-[12px] font-bold text-white transition-transform hover:-translate-y-0.5"
+              >
                 Edit Article
               </button>
-              <button className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full bg-white px-4 py-2 text-[12px] font-bold ring-1 ring-black/15 transition-transform hover:-translate-y-0.5">
-                <Filter size={12} strokeWidth={2.8} className="text-[#7C5CFF]" />
-                View Analytics
+              <button
+                onClick={() => handleDelete(selected._id, selected.title)}
+                disabled={removeArticle.isPending}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full bg-[#FCE7F3] px-4 py-2 text-[12px] font-bold text-[#D63384] ring-1 ring-black/15 transition-transform hover:-translate-y-0.5 disabled:opacity-50"
+              >
+                <Trash2 size={12} strokeWidth={2.5} />
+                Delete
               </button>
             </div>
           </Card>
         )}
       </div>
+
+      {/* Article CRUD Modal */}
+      {modal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={closeModal}>
+          <div className="w-full max-w-lg rounded-[28px] bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <span className="font-display text-[15px] uppercase tracking-wide">
+                {modal.mode === "create" ? "New Article" : "Edit Article"}
+              </span>
+              <button onClick={closeModal} className="flex h-7 w-7 items-center justify-center rounded-full bg-[#FAFAF6] hover:bg-white hover:ring-1 hover:ring-black/10">
+                <X size={13} strokeWidth={2.5} />
+              </button>
+            </div>
+            <label className="mb-3 block">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-black/55">Title</span>
+              <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} className="w-full rounded-[14px] bg-[#FAFAF6] px-3 py-2 text-[12px] font-semibold ring-1 ring-black/10 focus:outline-none focus:ring-black/25" placeholder="Article title" />
+            </label>
+            <div className="mb-3 grid grid-cols-2 gap-2">
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-black/55">Category</span>
+                <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} className="w-full appearance-none rounded-[14px] bg-[#FAFAF6] px-3 py-2 text-[12px] font-semibold ring-1 ring-black/10 focus:outline-none">
+                  {CATEGORIES.slice(1).map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-black/55">Status</span>
+                <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))} className="w-full appearance-none rounded-[14px] bg-[#FAFAF6] px-3 py-2 text-[12px] font-semibold ring-1 ring-black/10 focus:outline-none">
+                  <option>Draft</option>
+                  <option>Published</option>
+                  <option>Archived</option>
+                </select>
+              </label>
+            </div>
+            <label className="mb-3 block">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-black/55">Content</span>
+              <textarea rows={5} value={form.content} onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))} className="w-full resize-none rounded-[14px] bg-[#FAFAF6] px-3 py-2 text-[12px] leading-relaxed ring-1 ring-black/10 focus:outline-none focus:ring-black/25" placeholder="Article content..." />
+            </label>
+            <label className="mb-4 block">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-black/55">Tags (comma-separated)</span>
+              <input value={form.tags} onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))} className="w-full rounded-[14px] bg-[#FAFAF6] px-3 py-2 text-[12px] font-medium ring-1 ring-black/10 focus:outline-none focus:ring-black/25" placeholder="e.g. refund, shipping, order" />
+            </label>
+            <div className="flex gap-2">
+              <button onClick={closeModal} className="flex-1 rounded-full bg-white px-4 py-2 text-[12px] font-semibold ring-1 ring-black/15">Cancel</button>
+              <button onClick={handleSave} disabled={isSaving || !form.title.trim()} className="flex-1 rounded-full bg-black px-4 py-2 text-[12px] font-bold text-white disabled:opacity-50 transition-transform hover:-translate-y-0.5">
+                {isSaving ? "Saving…" : modal.mode === "create" ? "Create Article" : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Workflow strip */}
       <Card className="mt-4">

@@ -7,6 +7,8 @@ import {
   useChatHistory,
   useSendMessage,
   useUpdateTicket,
+  useAssignTicket,
+  useAgents,
   useAiSuggest,
   useAiSummarize,
 } from "@api/hooks";
@@ -168,6 +170,8 @@ export default function AgentDashboard() {
 
   const sendMutation = useSendMessage(isRealTicket ? ticket?.id : null);
   const updateMutation = useUpdateTicket();
+  const assignMutation = useAssignTicket();
+  const agentsQuery = useAgents();
   const aiSuggest = useAiSuggest();
   const aiSummarize = useAiSummarize();
 
@@ -599,38 +603,71 @@ export default function AgentDashboard() {
                 <CheckCircle2 size={13} strokeWidth={2.8} />
                 {updateMutation.isPending ? "Saving…" : ticket.status === "Resolved" ? "Resolved" : "Mark Resolved"}
               </button>
-              <button
-                type="button"
-                className="inline-flex items-center justify-center gap-1.5 rounded-full bg-white px-3 py-2 text-[12px] font-semibold ring-1 ring-black/10 transition-transform hover:-translate-y-0.5"
-              >
-                <UserPlus size={13} strokeWidth={2.5} />
-                Reassign
-              </button>
+              <div className="relative inline-flex items-center">
+                <select
+                  value={ticket.raw.assignedTo?._id || ""}
+                  onChange={(e) => assignMutation.mutate({ id: ticket.id, agentId: e.target.value })}
+                  disabled={!isRealTicket || assignMutation.isPending || agentsQuery.isLoading}
+                  className="appearance-none inline-flex items-center justify-center gap-1.5 rounded-full bg-white pl-8 pr-3 py-2 text-[12px] font-semibold ring-1 ring-black/10 transition-transform hover:-translate-y-0.5 cursor-pointer outline-none"
+                >
+                  <option value="" disabled>Reassign</option>
+                  {agentsQuery.data?.agents?.map(a => (
+                    <option key={a._id} value={a._id}>{a.name}</option>
+                  ))}
+                </select>
+                <UserPlus size={13} strokeWidth={2.5} className="absolute left-3 text-black/60 pointer-events-none" />
+              </div>
             </div>
           </div>
 
           {/* ticket details */}
           <CollapsibleSection title="Ticket Details" defaultOpen>
             <Row label="Status">
-              <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold" style={{ background: STATUS_TONES[ticket.status].bg, color: STATUS_TONES[ticket.status].color }}>
-                {ticket.status} <ChevronDown size={11} strokeWidth={2.5} />
-              </span>
+              <select
+                value={ticket.raw.status}
+                onChange={(e) => updateMutation.mutate({ id: ticket.id, status: e.target.value })}
+                disabled={!isRealTicket || updateMutation.isPending}
+                className="appearance-none inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold outline-none cursor-pointer"
+                style={{ background: STATUS_TONES[ticket.status]?.bg, color: STATUS_TONES[ticket.status]?.color }}
+              >
+                <option value="open">Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+                <option value="closed">Closed</option>
+              </select>
             </Row>
             <Row label="Priority">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FCE7F3] px-2.5 py-0.5 text-[11px] font-bold text-[#D63384]">
-                <Flag size={10} strokeWidth={3} />
-                High <ChevronDown size={11} strokeWidth={2.5} />
-              </span>
+              <select
+                value={ticket.raw.priority || "medium"}
+                onChange={(e) => updateMutation.mutate({ id: ticket.id, priority: e.target.value })}
+                disabled={!isRealTicket || updateMutation.isPending}
+                className="appearance-none inline-flex items-center gap-1.5 rounded-full bg-[#FCE7F3] px-2.5 py-0.5 text-[11px] font-bold text-[#D63384] outline-none cursor-pointer"
+              >
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
             </Row>
             <Row label="Category">
-              <span className="inline-flex items-center gap-1.5 font-semibold">
-                <Tag size={11} strokeWidth={2.5} className="text-black/40" />
-                Order Status
-              </span>
+              <div className="relative inline-flex items-center">
+                <select
+                  value={ticket.raw.category || ""}
+                  onChange={(e) => updateMutation.mutate({ id: ticket.id, category: e.target.value })}
+                  disabled={!isRealTicket || updateMutation.isPending}
+                  className="appearance-none inline-flex items-center gap-1.5 font-semibold text-black/75 pl-5 outline-none cursor-pointer"
+                >
+                  <option value="">Uncategorized</option>
+                  <option value="Order Status">Order Status</option>
+                  <option value="Refund Policy">Refund Policy</option>
+                  <option value="Shipping Info">Shipping Info</option>
+                  <option value="Technical Support">Technical Support</option>
+                </select>
+                <Tag size={11} strokeWidth={2.5} className="absolute left-0 text-black/40 pointer-events-none" />
+              </div>
             </Row>
-            <Row label="Source"><span className="font-semibold">Web Chat</span></Row>
-            <Row label="Created"><span className="font-medium text-black/65">May 20, 10:28 AM</span></Row>
-            <Row label="Updated"><span className="font-medium text-black/65">May 20, 10:32 AM</span></Row>
+            <Row label="Source"><span className="font-semibold">{ticket.raw.source || "Web Chat"}</span></Row>
+            <Row label="Created"><span className="font-medium text-black/65">{ticket.createdAt ? new Date(ticket.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}</span></Row>
+            <Row label="Updated"><span className="font-medium text-black/65">{ticket.raw.lastMessageAt ? new Date(ticket.raw.lastMessageAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}</span></Row>
           </CollapsibleSection>
 
           {/* customer details */}

@@ -144,18 +144,18 @@ export default function Agents() {
       handled: 0, resolved: 0, avg: "-", lastActive: "-", joined: "-", firstResp: "-", rating: 0,
     };
 
+  const [inviteModal, setInviteModal] = useState(false);
+  const [inviteForm, setInviteForm] = useState({ name: "", email: "", password: "", role: "agent" });
+
+  const openInvite = () => { setInviteForm({ name: "", email: "", password: "", role: "agent" }); setInviteModal(true); };
+  const closeInvite = () => setInviteModal(false);
+
   const handleInvite = async () => {
-    const name = window.prompt("Full name");
-    if (!name) return;
-    const email = window.prompt("Email");
-    if (!email) return;
-    const password = window.prompt("Temporary password (min 8 chars)");
-    if (!password) return;
-    const roleInput = (window.prompt("Role: admin | agent | viewer", "agent") || "agent").toLowerCase();
     try {
-      await inviteMutation.mutateAsync({ name, email, password, role: roleInput });
+      await inviteMutation.mutateAsync({ name: inviteForm.name, email: inviteForm.email, password: inviteForm.password, role: inviteForm.role });
+      closeInvite();
     } catch (err) {
-      window.alert(`Invite failed: ${err?.message || "unknown error"}`);
+      alert(`Invite failed: ${err?.response?.data?.message || err?.message || "unknown error"}`);
     }
   };
 
@@ -176,9 +176,9 @@ export default function Agents() {
             Filters
             <ChevronDown size={12} strokeWidth={2.5} className="text-black/50" />
           </button>
-          <button onClick={handleInvite} disabled={inviteMutation.isPending} className="inline-flex items-center gap-2 rounded-full bg-black px-4 py-2 text-[12px] font-bold text-white transition-transform hover:-translate-y-0.5 disabled:opacity-50">
+          <button onClick={openInvite} disabled={inviteMutation.isPending} className="inline-flex items-center gap-2 rounded-full bg-black px-4 py-2 text-[12px] font-bold text-white transition-transform hover:-translate-y-0.5 disabled:opacity-50">
             <Plus size={13} strokeWidth={3} />
-            {inviteMutation.isPending ? "Inviting…" : "Add Agent"}
+            Add Agent
           </button>
         </div>
       }
@@ -407,6 +407,45 @@ export default function Agents() {
           })}
         </div>
       </Card>
+      {/* Invite Agent Modal */}
+      {inviteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={closeInvite}>
+          <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <span className="font-display text-[15px] uppercase tracking-wide">Invite Agent</span>
+              <button onClick={closeInvite} className="flex h-7 w-7 items-center justify-center rounded-full bg-[#FAFAF6] hover:bg-white hover:ring-1 hover:ring-black/10">
+                <X size={13} strokeWidth={2.5} />
+              </button>
+            </div>
+            <label className="mb-3 block">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-black/55">Full Name</span>
+              <input value={inviteForm.name} onChange={(e) => setInviteForm((f) => ({ ...f, name: e.target.value }))} className="w-full rounded-[14px] bg-[#FAFAF6] px-3 py-2 text-[12px] font-semibold ring-1 ring-black/10 focus:outline-none focus:ring-black/25" placeholder="Jane Smith" />
+            </label>
+            <label className="mb-3 block">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-black/55">Email</span>
+              <input type="email" value={inviteForm.email} onChange={(e) => setInviteForm((f) => ({ ...f, email: e.target.value }))} className="w-full rounded-[14px] bg-[#FAFAF6] px-3 py-2 text-[12px] font-semibold ring-1 ring-black/10 focus:outline-none focus:ring-black/25" placeholder="jane@company.com" />
+            </label>
+            <label className="mb-3 block">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-black/55">Temporary Password</span>
+              <input type="password" value={inviteForm.password} onChange={(e) => setInviteForm((f) => ({ ...f, password: e.target.value }))} className="w-full rounded-[14px] bg-[#FAFAF6] px-3 py-2 text-[12px] font-semibold ring-1 ring-black/10 focus:outline-none focus:ring-black/25" placeholder="Min. 8 characters" />
+            </label>
+            <label className="mb-4 block">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-black/55">Role</span>
+              <select value={inviteForm.role} onChange={(e) => setInviteForm((f) => ({ ...f, role: e.target.value }))} className="w-full appearance-none rounded-[14px] bg-[#FAFAF6] px-3 py-2 text-[12px] font-semibold ring-1 ring-black/10 focus:outline-none">
+                <option value="agent">Agent</option>
+                <option value="admin">Admin</option>
+                <option value="viewer">Viewer</option>
+              </select>
+            </label>
+            <div className="flex gap-2">
+              <button onClick={closeInvite} className="flex-1 rounded-full bg-white px-4 py-2 text-[12px] font-semibold ring-1 ring-black/15">Cancel</button>
+              <button onClick={handleInvite} disabled={inviteMutation.isPending || !inviteForm.name.trim() || !inviteForm.email.trim() || inviteForm.password.length < 8} className="flex-1 rounded-full bg-black px-4 py-2 text-[12px] font-bold text-white disabled:opacity-50 transition-transform hover:-translate-y-0.5">
+                {inviteMutation.isPending ? "Inviting…" : "Send Invite"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }

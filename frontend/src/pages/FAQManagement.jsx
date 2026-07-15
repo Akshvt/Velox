@@ -80,6 +80,8 @@ export default function FAQManagement() {
   const [rowsPerPage, setRowsPerPage] = useState("10");
   const [selectedId, setSelectedId] = useState(null);
   const [showDetails, setShowDetails] = useState(true);
+  const [modal, setModal] = useState(null); // null | { mode: "create"|"edit", id?, q, answer, category }
+  const [faqForm, setFaqForm] = useState({ q: "", answer: "", category: "General" });
 
   const filtered = useMemo(() => {
     return allFaqs.filter((r) => {
@@ -101,29 +103,29 @@ export default function FAQManagement() {
       category: "-", language: "English", status: "Published", updated: "-", views: null, votes: null,
     };
 
-  const handleNew = async () => {
-    const question = window.prompt("Question");
-    if (!question) return;
-    const answer = window.prompt("Answer");
-    if (!answer) return;
-    const cat = window.prompt("Category (optional)") || undefined;
-    try {
-      await upsert.mutateAsync({ question, answer, category: cat });
-    } catch (err) {
-      window.alert(`Create failed: ${err?.message || "unknown"}`);
-    }
+  const openNew = () => {
+    setFaqForm({ q: "", answer: "", category: "General" });
+    setModal({ mode: "create" });
   };
 
-  const handleEdit = async () => {
-    if (!selected.id) return;
-    const question = window.prompt("Question", selected.q);
-    if (!question) return;
-    const answer = window.prompt("Answer", selected.answer);
-    if (answer === null) return;
+  const openEditFaq = (faq) => {
+    setFaqForm({ q: faq.q, answer: faq.answer, category: faq.category });
+    setModal({ mode: "edit", id: faq.id });
+  };
+
+  const closeFaqModal = () => setModal(null);
+
+  const handleSaveFaq = async () => {
+    const payload = { question: faqForm.q, answer: faqForm.answer, category: faqForm.category };
     try {
-      await upsert.mutateAsync({ id: selected.id, question, answer });
+      if (modal.mode === "create") {
+        await upsert.mutateAsync(payload);
+      } else {
+        await upsert.mutateAsync({ id: modal.id, ...payload });
+      }
+      closeFaqModal();
     } catch (err) {
-      window.alert(`Update failed: ${err?.message || "unknown"}`);
+      alert(`Save failed: ${err?.message || "unknown"}`);
     }
   };
 
@@ -132,18 +134,18 @@ export default function FAQManagement() {
     try {
       await upsert.mutateAsync({ id: selected.id, isActive: selected.status !== "Published" });
     } catch (err) {
-      window.alert(`Update failed: ${err?.message || "unknown"}`);
+      alert(`Update failed: ${err?.message || "unknown"}`);
     }
   };
 
   const handleDelete = async () => {
     if (!selected.id) return;
-    if (!window.confirm(`Delete FAQ: "${selected.q}"?`)) return;
+    if (!confirm(`Delete FAQ: "${selected.q}"?`)) return;
     try {
       await remove.mutateAsync(selected.id);
       setSelectedId(null);
     } catch (err) {
-      window.alert(`Delete failed: ${err?.message || "unknown"}`);
+      alert(`Delete failed: ${err?.message || "unknown"}`);
     }
   };
 
@@ -153,7 +155,7 @@ export default function FAQManagement() {
       title="FAQ Management"
       subtitle="Create and manage frequently asked questions to help customers find quick answers."
       actions={
-        <button onClick={handleNew} disabled={upsert.isPending} className="inline-flex items-center gap-2 rounded-full bg-black px-4 py-2 text-[12px] font-bold text-white transition-transform hover:-translate-y-0.5 disabled:opacity-50">
+        <button onClick={openNew} disabled={upsert.isPending} className="inline-flex items-center gap-2 rounded-full bg-black px-4 py-2 text-[12px] font-bold text-white transition-transform hover:-translate-y-0.5 disabled:opacity-50">
           <Plus size={13} strokeWidth={3} />
           {upsert.isPending ? "Saving…" : "New FAQ"}
         </button>
@@ -340,7 +342,7 @@ export default function FAQManagement() {
               <SectionLabel>Actions</SectionLabel>
               <div className="flex flex-col gap-2">
                 <ActionBtn icon={Eye}    color="#7C5CFF" onClick={() => setShowDetails(true)}>View FAQ</ActionBtn>
-                <ActionBtn icon={Pencil} color="#3FA02A" onClick={handleEdit}>Edit FAQ</ActionBtn>
+                <ActionBtn icon={Pencil} color="#3FA02A" onClick={() => openEditFaq(selected)}>Edit FAQ</ActionBtn>
                 <ActionBtn icon={Copy}   color="#C28A00">Duplicate FAQ</ActionBtn>
                 <ActionBtn icon={EyeOff} color="#5B5B57" onClick={handleToggleStatus} trailing>Change Status</ActionBtn>
                 <button onClick={handleDelete} disabled={remove.isPending || !selected.id} className="inline-flex w-full items-center justify-start gap-2 rounded-[14px] bg-[#FCE7F3] px-3 py-2 text-[12px] font-bold text-[#D63384] ring-1 ring-black/10 hover:-translate-y-0.5 transition-transform disabled:opacity-50">
@@ -350,6 +352,42 @@ export default function FAQManagement() {
             </div>
           </div>
         </Card>
+      )}
+
+      {/* FAQ CRUD Modal */}
+      {modal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={closeFaqModal}>
+          <div className="w-full max-w-lg rounded-[28px] bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <span className="font-display text-[15px] uppercase tracking-wide">
+                {modal.mode === "create" ? "New FAQ" : "Edit FAQ"}
+              </span>
+              <button onClick={closeFaqModal} className="flex h-7 w-7 items-center justify-center rounded-full bg-[#FAFAF6] hover:bg-white hover:ring-1 hover:ring-black/10">
+                <X size={13} strokeWidth={2.5} />
+              </button>
+            </div>
+            <label className="mb-3 block">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-black/55">Question</span>
+              <input value={faqForm.q} onChange={(e) => setFaqForm((f) => ({ ...f, q: e.target.value }))} className="w-full rounded-[14px] bg-[#FAFAF6] px-3 py-2 text-[12px] font-semibold ring-1 ring-black/10 focus:outline-none focus:ring-black/25" placeholder="What is your question?" />
+            </label>
+            <label className="mb-3 block">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-black/55">Category</span>
+              <select value={faqForm.category} onChange={(e) => setFaqForm((f) => ({ ...f, category: e.target.value }))} className="w-full appearance-none rounded-[14px] bg-[#FAFAF6] px-3 py-2 text-[12px] font-semibold ring-1 ring-black/10 focus:outline-none">
+                {CATEGORIES.slice(1).map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </label>
+            <label className="mb-4 block">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-black/55">Answer</span>
+              <textarea rows={5} value={faqForm.answer} onChange={(e) => setFaqForm((f) => ({ ...f, answer: e.target.value }))} className="w-full resize-none rounded-[14px] bg-[#FAFAF6] px-3 py-2 text-[12px] leading-relaxed ring-1 ring-black/10 focus:outline-none focus:ring-black/25" placeholder="Provide a clear, helpful answer..." />
+            </label>
+            <div className="flex gap-2">
+              <button onClick={closeFaqModal} className="flex-1 rounded-full bg-white px-4 py-2 text-[12px] font-semibold ring-1 ring-black/15">Cancel</button>
+              <button onClick={handleSaveFaq} disabled={upsert.isPending || !faqForm.q.trim() || !faqForm.answer.trim()} className="flex-1 rounded-full bg-black px-4 py-2 text-[12px] font-bold text-white disabled:opacity-50 transition-transform hover:-translate-y-0.5">
+                {upsert.isPending ? "Saving…" : modal.mode === "create" ? "Create FAQ" : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* FAQ workflow strip */}

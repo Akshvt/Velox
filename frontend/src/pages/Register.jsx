@@ -53,6 +53,7 @@ export default function Register() {
       .then((data) => {
         const apiUser = data?.user ?? {};
         const user = {
+          id: apiUser.id || apiUser._id,
           email: apiUser.email || email.trim(),
           role: apiUser.role || "admin",
           name: apiUser.name || name.trim(),

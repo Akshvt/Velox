@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import { useSmoothScroll } from "@hooks/useSmoothScroll";
 import Sidebar from "./Sidebar.jsx";
 import Topbar from "./Topbar.jsx";
 
@@ -31,6 +32,10 @@ export default function AppShell({
   const isWorkspace = variant === "workspace";
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const location = useLocation();
+
+  // Initialise Lenis smooth scroll (global instance, mounts once)
+  useSmoothScroll();
+
   // close drawer on route change
   useEffect(() => {
     setMobileNavOpen(false);
@@ -51,18 +56,20 @@ export default function AppShell({
           <div className={`flex min-h-0 flex-1 flex-col px-3 py-3 sm:px-5 sm:py-5 ${contentClassName}`}>{children}</div>
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-5 sm:py-5">
-            {banner && (title || actions) && (
-              <div
-                className="velox-banner mb-4 flex flex-wrap items-center justify-between gap-2 rounded-[24px] px-3 py-3 ring-1 ring-black/15 sm:mb-5 sm:gap-3 sm:rounded-[28px] sm:px-5 sm:py-4"
-              >
-                <div className="leading-tight">
-                  {title && <h1 className="font-display text-[18px] uppercase tracking-wide sm:text-[24px]">{title}</h1>}
-                  {subtitle && <p className="mt-0.5 text-[11px] font-medium text-black/65 sm:text-[12px]">{subtitle}</p>}
+            <div>
+              {banner && (title || actions) && (
+                <div
+                  className="velox-banner mb-4 flex flex-wrap items-center justify-between gap-2 rounded-[24px] px-3 py-3 ring-1 ring-black/15 sm:mb-5 sm:gap-3 sm:rounded-[28px] sm:px-5 sm:py-4"
+                >
+                  <div className="leading-tight">
+                    {title && <h1 className="font-display text-[18px] uppercase tracking-wide sm:text-[24px]">{title}</h1>}
+                    {subtitle && <p className="mt-0.5 text-[11px] font-medium text-black/65 sm:text-[12px]">{subtitle}</p>}
+                  </div>
+                  {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
                 </div>
-                {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
-              </div>
-            )}
-            <div className={contentClassName}>{children}</div>
+              )}
+              <div className={contentClassName}>{children}</div>
+            </div>
           </div>
         )}
       </div>

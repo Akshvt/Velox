@@ -46,13 +46,36 @@ export default function AdminPanel() {
   const [agentRange, setAgentRange] = useState("This Week");
 
   // Fetch live data
-  const { data: overviewData, isLoading: overviewLoading, isError: overviewError } = useAnalyticsOverview();
-  const { data: trendsData, isLoading: trendsLoading, isError: trendsError } = useTicketsTrend();
-  const { data: agentsData, isLoading: agentsLoading, isError: agentsError } = useAgentPerformance();
-  const { data: ticketsData, isLoading: ticketsLoading, isError: ticketsError } = useTickets({ limit: 5 });
+  const { data: overviewData, isLoading: overviewLoading, isError: overviewError, refetch: refetchOverview, isFetching: isFetchingOverview } = useAnalyticsOverview();
+  const { data: trendsData, isLoading: trendsLoading, isError: trendsError, refetch: refetchTrends, isFetching: isFetchingTrends } = useTicketsTrend();
+  const { data: agentsData, isLoading: agentsLoading, isError: agentsError, refetch: refetchAgents, isFetching: isFetchingAgents } = useAgentPerformance();
+  const { data: ticketsData, isLoading: ticketsLoading, isError: ticketsError, refetch: refetchTickets, isFetching: isFetchingTickets } = useTickets({ limit: 5 });
 
   const isLoading = overviewLoading || trendsLoading || agentsLoading || ticketsLoading;
   const isError = overviewError || trendsError || agentsError || ticketsError;
+  const isRefreshing = isFetchingOverview || isFetchingTrends || isFetchingAgents || isFetchingTickets;
+
+  const handleRefresh = () => {
+    refetchOverview();
+    refetchTrends();
+    refetchAgents();
+    refetchTickets();
+  };
+
+  const handleExport = () => {
+    const list = ticketsData?.tickets || [];
+    if (!list.length) return;
+    const header = "ID,Customer,Subject,Status,Priority,Created\n";
+    const csv = list.map(t => `${t._id},"${t.customer?.name || ""}","${t.subject || ""}",${t.status},${t.priority},${new Date(t.createdAt).toISOString()}`).join("\n");
+    const blob = new Blob([header + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `tickets_export_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const overview = overviewData || {};
 
@@ -153,12 +176,19 @@ export default function AdminPanel() {
       subtitle="Overview of your support system"
       actions={
         <>
-          <button className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-[12px] font-semibold ring-1 ring-black/15">
+          <button 
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-[12px] font-semibold ring-1 ring-black/15 disabled:opacity-50 transition-transform hover:-translate-y-0.5"
+          >
             <Calendar size={13} strokeWidth={2.5} className="text-black/55" />
-            Live Data
+            {isRefreshing ? "Refreshing..." : "Live Data"}
             <ChevronDown size={12} strokeWidth={2.5} className="text-black/50" />
           </button>
-          <button className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-[12px] font-bold ring-1 ring-black/15 transition-transform hover:-translate-y-0.5">
+          <button 
+            onClick={handleExport}
+            className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-[12px] font-bold ring-1 ring-black/15 transition-transform hover:-translate-y-0.5"
+          >
             <Download size={13} strokeWidth={2.8} className="text-[#3FA02A]" />
             Export
           </button>

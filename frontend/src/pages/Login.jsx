@@ -77,6 +77,7 @@ export default function Login() {
       .then((data) => {
         const apiUser = data?.user ?? {};
         const user = {
+          id: apiUser.id || apiUser._id,
           email: apiUser.email || email.trim(),
           role: apiUser.role || fallbackRole.key,
           name: apiUser.name || fallbackRole.name,
@@ -84,6 +85,7 @@ export default function Login() {
             apiUser.initials ||
             initialsFor(apiUser.name || fallbackRole.name),
           roleLabel: apiUser.roleLabel || fallbackRole.roleLabel,
+          tenantId: apiUser.tenantId || null,
         };
         setAuth({ user, accessToken: data?.accessToken || null });
         const from = location.state?.from;

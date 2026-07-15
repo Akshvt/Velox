@@ -20,13 +20,11 @@ import HelpMenu from "@components/HelpMenu.jsx";
 export default function Topbar({
   searchPlaceholder = "Search tickets, users, agents...",
   notifCount = 5,
-  tenants = ["Acme Inc.", "Globex", "Initech"],
-  activeTenant = "Acme Inc.",
-  onTenantChange,
   user,
   onMenu,
 }) {
   const storeUser = useAuthStore((s) => s.user);
+  const tenantName = storeUser?.tenantId?.name || "Workspace";
   const resolvedUser = user ||
     (storeUser
       ? {
@@ -58,25 +56,13 @@ export default function Topbar({
         </span>
       </div>
 
-      {/* tenant switcher */}
-      {tenants?.length ? (
-        <label className="hidden items-center gap-2 rounded-full bg-white px-3 py-2 text-[12px] font-semibold ring-1 ring-black/15 md:inline-flex">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full" style={{ background: "#F1ECFF", color: "#7C5CFF" }}>
-            <Building2 size={12} strokeWidth={2.5} />
-          </span>
-          <select
-            value={activeTenant}
-            onChange={(e) => onTenantChange?.(e.target.value)}
-            className="appearance-none bg-transparent pr-1 focus:outline-none"
-            aria-label="Switch tenant"
-          >
-            {tenants.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-          <ChevronDown size={12} strokeWidth={2.5} className="text-black/50" />
-        </label>
-      ) : null}
+      {/* tenant indicator */}
+      <div className="hidden items-center gap-2 rounded-full bg-white px-3 py-2 text-[12px] font-semibold ring-1 ring-black/15 md:inline-flex">
+        <span className="flex h-6 w-6 items-center justify-center rounded-full" style={{ background: "#F1ECFF", color: "#7C5CFF" }}>
+          <Building2 size={12} strokeWidth={2.5} />
+        </span>
+        <span className="text-black/75">{tenantName}</span>
+      </div>
 
       {/* notifications */}
       <NotificationsMenu />
