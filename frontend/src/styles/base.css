@@ -296,11 +296,22 @@ html.dark [style*="color:#2b2b29"]   { color: #F2F2F5 !important; }
    correctly. The specific overrides above still take priority. */
 html.dark, html.dark body { color: #F2F2F5; }
 html.dark .text-black,
+html.dark .text-black\/95,
 html.dark .text-black\/90 { color: #F2F2F5 !important; }
+html.dark .text-black\/85,
 html.dark .text-black\/80 { color: #E2E2E7 !important; }
+html.dark .text-black\/75,
 html.dark .text-black\/70 { color: #C8C8CF !important; }
 html.dark .text-black\/65 { color: #B5B5BC !important; }
 html.dark .text-black\/60 { color: #A6A6AE !important; }
+html.dark .text-black\/55,
 html.dark .text-black\/50 { color: #9C9CA6 !important; }
+html.dark .text-black\/45,
 html.dark .text-black\/40 { color: #82828C !important; }
+html.dark .text-black\/35,
 html.dark .text-black\/30 { color: #65656F !important; }
+html.dark .text-black\/25,
+html.dark .text-black\/20 { color: #4F4F58 !important; }
+html.dark .text-black\/15,
+html.dark .text-black\/10,
+html.dark .text-black\/5 { color: #3A3A42 !important; }
