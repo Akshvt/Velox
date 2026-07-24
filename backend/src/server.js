@@ -67,6 +67,82 @@ app.get("/health", (_, res) => {
   });
 });
 
+import Tenant from "./models/Tenant.js";
+import User from "./models/User.js";
+import Ticket from "./models/Ticket.js";
+import crypto from "crypto";
+
+// --- SEED DATABASE ENDPOINT ---
+app.get("/api/seed", async (req, res) => {
+  try {
+    await Tenant.deleteMany({});
+    await User.deleteMany({});
+    await Ticket.deleteMany({});
+
+    const tenant = await Tenant.create({
+      name: "Acme Corp",
+      slug: "acme-corp",
+      apiKey: crypto.randomBytes(32).toString("hex"),
+      plan: "pro",
+      settings: {
+        ai: { enabled: true, model: "gpt-4o-mini", tone: "professional", autoReply: true, confidenceThreshold: 0.8 },
+        widget: { accentColor: "#3B82F6", greeting: "Hi there! How can we help you today?" },
+      }
+    });
+
+    const adminUser = await User.create({
+      tenantId: tenant._id,
+      name: "Admin User",
+      email: "admin@acme.com",
+      passwordHash: "password123",
+      role: "admin",
+      isActive: true,
+    });
+
+    const agentUser = await User.create({
+      tenantId: tenant._id,
+      name: "Support Agent",
+      email: "agent@acme.com",
+      passwordHash: "password123",
+      role: "agent",
+      isActive: true,
+    });
+
+    const tickets = [
+      {
+        tenantId: tenant._id,
+        customer: { name: "Alice Johnson", email: "alice@example.com" },
+        subject: "Cannot access my dashboard",
+        body: "Hi, I have been trying to log into my dashboard since this morning but I keep getting a 403 error.",
+        status: "open",
+        priority: "high",
+        category: "technical",
+        aiConfidence: 0.85,
+        sentiment: "negative",
+        assignedTo: agentUser._id,
+        notes: [{ author: agentUser._id, content: "Looking into the logs for this user." }]
+      },
+      {
+        tenantId: tenant._id,
+        customer: { name: "Bob Smith", email: "bob@startup.io" },
+        subject: "Billing question",
+        body: "Hello, we are currently on the free tier and want to upgrade to Pro.",
+        status: "open",
+        priority: "medium",
+        category: "billing",
+        aiConfidence: 0.92,
+        sentiment: "neutral",
+        assignedTo: adminUser._id
+      }
+    ];
+    await Ticket.insertMany(tickets);
+
+    res.json({ success: true, message: "Database seeded! You can now log in with admin@acme.com / password123" });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Must be registered last - catches any error thrown in route handlers
 app.use(errorHandler);
 

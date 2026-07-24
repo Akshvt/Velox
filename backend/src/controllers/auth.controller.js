@@ -8,8 +8,8 @@ import { NODE_ENV } from "../config/env.js";
 // Refresh token cookie settings - httpOnly so JS can't read it
 const COOKIE_OPTS = {
   httpOnly: true,
-  secure:   NODE_ENV === "production",
-  sameSite: "lax",
+  secure:   true, // Must be true for sameSite: "none"
+  sameSite: "none", // Allow cross-domain cookies
   maxAge:   7 * 24 * 60 * 60 * 1000, // 7 days in ms
 };
 
