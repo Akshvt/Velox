@@ -70,6 +70,10 @@ app.get("/health", (_, res) => {
 import Tenant from "./models/Tenant.js";
 import User from "./models/User.js";
 import Ticket from "./models/Ticket.js";
+import FAQ from "./models/FAQ.js";
+import KbArticle from "./models/KbArticle.js";
+import Message from "./models/Message.js";
+import Report from "./models/Report.js";
 import crypto from "crypto";
 
 // --- SEED DATABASE ENDPOINT ---
@@ -78,6 +82,10 @@ app.get("/api/seed", async (req, res) => {
     await Tenant.deleteMany({});
     await User.deleteMany({});
     await Ticket.deleteMany({});
+    await FAQ.deleteMany({});
+    await KbArticle.deleteMany({});
+    await Message.deleteMany({});
+    await Report.deleteMany({});
 
     const tenant = await Tenant.create({
       name: "Acme Corp",
@@ -135,9 +143,34 @@ app.get("/api/seed", async (req, res) => {
         assignedTo: adminUser._id
       }
     ];
-    await Ticket.insertMany(tickets);
+    const insertedTickets = await Ticket.insertMany(tickets);
 
-    res.json({ success: true, message: "Database seeded! You can now log in with admin@acme.com / password123" });
+    // --- Add FAQs ---
+    await FAQ.insertMany([
+      { tenantId: tenant._id, question: "How do I reset my password?", answer: "Click 'Forgot Password' on the login page.", category: "general" },
+      { tenantId: tenant._id, question: "What is your refund policy?", answer: "We offer a 30-day money-back guarantee.", category: "billing" }
+    ]);
+
+    // --- Add KB Articles ---
+    await KbArticle.insertMany([
+      { tenantId: tenant._id, title: "Getting Started Guide", category: "General", status: "Published", content: "Welcome to Acme Corp! Here is how to get started...", tags: ["intro", "guide"], createdBy: adminUser._id },
+      { tenantId: tenant._id, title: "API Documentation", category: "Technical", status: "Published", content: "Here are the endpoints you can use...", tags: ["api", "dev"], createdBy: agentUser._id }
+    ]);
+
+    // --- Add Messages (Chat History) ---
+    await Message.insertMany([
+      { tenantId: tenant._id, ticketId: insertedTickets[0]._id, senderType: "customer", content: "Hi, I have been trying to log into my dashboard since this morning but I keep getting a 403 error." },
+      { tenantId: tenant._id, ticketId: insertedTickets[0]._id, senderType: "ai", content: "I'm sorry to hear that. I have assigned a support agent to look into this for you.", isAutoReply: true },
+      { tenantId: tenant._id, ticketId: insertedTickets[0]._id, senderType: "agent", senderId: agentUser._id, content: "Hello Alice, I am checking the logs right now." }
+    ]);
+
+    // --- Add Reports ---
+    await Report.insertMany([
+      { tenantId: tenant._id, name: "Weekly Ticket Volume", type: "Performance", desc: "Overview of tickets resolved this week.", createdBy: "Admin User", frequency: "Weekly", status: "Success", lastRun: new Date().toISOString() },
+      { tenantId: tenant._id, name: "Customer Satisfaction Q3", type: "Satisfaction", desc: "CSAT scores from Q3 surveys.", createdBy: "Admin User", frequency: "One-time", status: "Scheduled" }
+    ]);
+
+    res.json({ success: true, message: "Database fully seeded with all collections! You can now log in with admin@acme.com / password123" });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
